@@ -18,10 +18,20 @@ classifiers = [
     "Programming Language :: Python :: 3",
 ]
 dynamic = ["version"]
-dependencies = ["jax",
-                "jaxlib",
-                "equinox",
-                ]
+dependencies = [
+    # upstream jaxoplanet
+    "jax",
+    "jaxlib",
+    "equinox",
+    # jaxoplanet2 fitter
+    "numpy",
+    "numpyro>=0.21",
+    "numpyro-ext",
+    "tinygp",
+    "matplotlib",
+    "corner",
+    "typer>=0.12",
+]
 
 [project.urls]
 "Homepage" = "https://github.com/jpdeleon/jaxoplanet2"
@@ -58,6 +68,9 @@ docs = [
     "astropy"
 ]
 
+[project.scripts]
+jaxoplanet = "jaxoplanet2.cli:main"
+
 [build-system]
 requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
@@ -67,6 +80,9 @@ source = "vcs"
 # jaxoplanet2 releases are tagged jaxoplanet2-vX.Y.Z so they never mix with the
 # upstream vX.Y.Z tags inherited by this fork.
 raw-options = { tag_regex = "^jaxoplanet2-v(?P<version>.*)$", git_describe_command = "git describe --dirty --tags --long --match jaxoplanet2-v*" }
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/jaxoplanet", "src/jaxoplanet2"]
 
 [tool.hatch.build.hooks.vcs]
 version-file = "src/jaxoplanet/jaxoplanet_version.py"
@@ -92,5 +108,5 @@ ignore = [
 # exclude = []
 
 [tool.ruff.lint.isort]
-known-first-party = ["jaxoplanet"]
+known-first-party = ["jaxoplanet", "jaxoplanet2"]
 combine-as-imports = true
