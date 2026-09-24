@@ -228,5 +228,58 @@ def mcmc_output(
             typer.echo(f"wrote {path}")
 
 
+@app.command()
+def ns_fit(
+    dir_path: str = typer.Argument(..., help="path to the fit directory"),
+    quiet: bool = typer.Option(False, "--quiet", "-q"),
+    allow_unsupported: bool = typer.Option(False, "--allow-unsupported"),
+) -> None:
+    """Nested sampling (jaxns): posterior and Bayesian evidence ln Z."""
+    from jaxoplanet2.infer.mcmc_output import posterior_output
+    from jaxoplanet2.infer.nested import NestedError, ns_fit as _ns_fit
+
+    try:
+        _ns_fit(dir_path, quiet=quiet, allow_unsupported=allow_unsupported)
+    except NestedError as e:
+        typer.echo(f"Error: {e}")
+        raise typer.Exit(1) from e
+    table = Path(dir_path) / "results" / "ns_table.csv"
+    if table.exists():  # never silently overwrite old output
+        typer.echo(f"{table} exists; run 'jaxoplanet ns-output -o' to refresh it.")
+        return
+    for path in posterior_output(dir_path, "ns", allow_unsupported=allow_unsupported):
+        if not quiet:
+            typer.echo(f"wrote {path}")
+
+
+@app.command()
+def ns_output(
+    dir_path: str = typer.Argument(..., help="path to the fit directory"),
+    overwrite: bool = typer.Option(False, "--overwrite", "-o"),
+    quiet: bool = typer.Option(False, "--quiet", "-q"),
+    file_extension: str = typer.Option(
+        ".pdf", "--file-extension", "-e", help="figure format: pdf, png, jpg, svg, webp"
+    ),
+    allow_unsupported: bool = typer.Option(False, "--allow-unsupported"),
+) -> None:
+    """Tables, LaTeX, corner and fit plots from nested-sampling draws."""
+    from jaxoplanet2.infer.mcmc_output import posterior_output
+
+    try:
+        paths = posterior_output(
+            dir_path,
+            "ns",
+            file_extension=file_extension,
+            overwrite=overwrite,
+            allow_unsupported=allow_unsupported,
+        )
+    except (FileExistsError, FileNotFoundError, ValueError) as e:
+        typer.echo(f"Error: {e}")
+        raise typer.Exit(1) from e
+    if not quiet:
+        for path in paths:
+            typer.echo(f"wrote {path}")
+
+
 def main() -> None:
     app()
