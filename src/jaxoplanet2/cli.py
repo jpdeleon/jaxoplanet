@@ -57,5 +57,29 @@ def init(
     )
 
 
+@app.command()
+def validate(
+    dir_path: str = typer.Argument(..., help="path to the fit directory"),
+    allow_unsupported: bool = typer.Option(
+        False,
+        "--allow-unsupported",
+        help="warn about unsupported settings/params instead of failing",
+    ),
+) -> None:
+    """Check settings, params and data, and evaluate the initial model."""
+    from jaxoplanet2.validate import validate as _validate
+
+    report = _validate(dir_path, allow_unsupported=allow_unsupported)
+    for line in report.info:
+        typer.echo(line)
+    for line in report.warnings:
+        typer.echo(f"WARNING: {line}")
+    for line in report.errors:
+        typer.echo(f"ERROR: {line}")
+    if not report.ok:
+        raise typer.Exit(1)
+    typer.echo("OK")
+
+
 def main() -> None:
     app()
