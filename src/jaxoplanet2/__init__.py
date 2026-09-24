@@ -1,0 +1,8 @@
+"""allesfitter-style transit and RV fitting powered by jaxoplanet."""
+
+__all__ = ["__version__"]
+
+from jaxoplanet2._shadowing import warn_if_upstream_installed
+from jaxoplanet2._version import __version__ as __version__
+
+warn_if_upstream_installed()
