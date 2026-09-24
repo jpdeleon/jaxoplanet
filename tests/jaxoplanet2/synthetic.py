@@ -25,7 +25,10 @@ TRUTH = {
     "host_ldc_q1_tess": 0.4,
     "host_ldc_q2_tess": 0.3,
     "ln_err_flux_tess": np.log(1e-3),
-    "ln_jitter_rv_harps": np.log(2e-3),
+    # above the 3 m/s errors, so the jitter is constrained (a sub-error jitter
+    # leaves a flat likelihood plateau towards ln_jitter -> -15 that NUTS
+    # can only cross with very deep trees)
+    "ln_jitter_rv_harps": np.log(6e-3),
     "baseline_offset_rv_harps": 0.01,
 }
 PRIORS = {
@@ -86,7 +89,9 @@ def make_fit_dir(
     if rv:
         tr = np.sort(TRUTH["b_epoch"] + rng.uniform(0, 30, 40))
         signal = np.asarray(rv_model(truth, settings, "harps", tr))
-        noise = rng.normal(0, np.hypot(3e-3, 2e-3), tr.size)
+        noise = rng.normal(
+            0, np.hypot(3e-3, np.exp(TRUTH["ln_jitter_rv_harps"])), tr.size
+        )
         _write(path / "harps.csv", tr, signal + 0.01 + noise, 3e-3)
     return path
 
