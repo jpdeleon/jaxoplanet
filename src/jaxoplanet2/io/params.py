@@ -83,10 +83,10 @@ class ParamTable:
         )
 
 
-def load_params(fit_dir: str | Path) -> ParamTable:
-    path = Path(fit_dir) / PARAMS_FILE
+def load_params(fit_dir: str | Path, filename: str = PARAMS_FILE) -> ParamTable:
+    path = Path(fit_dir) / filename
     if not path.is_file():
-        raise FileNotFoundError(f"no {PARAMS_FILE} in {Path(fit_dir)}")
+        raise FileNotFoundError(f"no {filename} in {Path(fit_dir)}")
     return parse_params_text(path.read_text())
 
 

@@ -50,7 +50,7 @@ jobs:
         run: uv run --no-project jaxoplanet --help
       - name: Tests (with coverage gate)
         run: >
-          uv run --no-project pytest tests/jaxoplanet2
+          uv run --no-project pytest tests/jaxoplanet2 -n auto
           --cov=jaxoplanet2 --cov-report=term-missing --cov-fail-under=80
 
   slow-tests:
@@ -70,4 +70,4 @@ jobs:
           uv venv
           uv pip install -e ".[test]" setuptools
       - name: Slow tests (end-to-end fits)
-        run: uv run --no-project pytest tests/jaxoplanet2 -m slow
+        run: uv run --no-project pytest tests/jaxoplanet2 -m slow -n auto

@@ -50,6 +50,8 @@ def jaxoplanet2(session):
     session.run(
         "pytest",
         "tests/jaxoplanet2",
+        "-n",
+        "auto",
         "--cov=jaxoplanet2",
         "--cov-report=term-missing",
         "--cov-fail-under=80",
