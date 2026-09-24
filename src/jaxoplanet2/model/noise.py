@@ -6,6 +6,7 @@
   ``sigma = sqrt(yerr^2 + exp(ln_jitter_rv_<inst>)^2)``.
 """
 
+import math
 from collections.abc import Mapping
 
 import jax
@@ -15,7 +16,9 @@ from jaxoplanet2.io.data import Dataset
 from jaxoplanet2.io.settings import Settings
 
 Values = Mapping[str, jax.Array | float]
-LOG_2PI = jnp.log(2.0 * jnp.pi)
+# a Python float: jnp at import time would initialise the JAX backend, which
+# must stay possible to configure (e.g. host device count) until first use
+LOG_2PI = math.log(2.0 * math.pi)
 
 
 def _require(values: Values, key: str) -> jax.Array:

@@ -26,7 +26,9 @@ def test_load_star_reads_allesfitter_format(tmp_path):
         "#R_star,R_star_lerr,R_star_uerr,M_star,M_star_lerr,M_star_uerr,Teff_star\n"
         "#R_sun,R_sun,R_sun,M_sun,M_sun,M_sun,K\n0.38,0.01,0.02,0.37,0.02,0.03,3391\n"
     )
-    assert load_star(tmp_path) == Star(0.38, (0.01, 0.02), 0.37, (0.02, 0.03))
+    assert load_star(tmp_path) == Star(
+        0.38, (0.01, 0.02), 0.37, (0.02, 0.03), teff=3391.0, teff_err=(0.0, 0.0)
+    )
     assert load_star(tmp_path / "nowhere") is None
 
 

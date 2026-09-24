@@ -4,6 +4,8 @@ Mirrors the allesfitter CLI (``show-initial-guess``, ``optimize``, ``mcmc-fit``,
 ...) so existing fit directories and habits carry over unchanged.
 """
 
+from pathlib import Path
+
 import typer
 
 from jaxoplanet2._metadata import __version__
@@ -185,8 +187,45 @@ def mcmc_fit(
     except McmcError as e:
         typer.echo(f"Error: {e}")
         raise typer.Exit(1) from e
+    from jaxoplanet2.infer.mcmc_output import TABLE_FILE
+
+    table = Path(dir_path) / "results" / TABLE_FILE
+    if table.exists():  # as allesfitter2: never silently overwrite old output
+        typer.echo(f"{table} exists; run 'jaxoplanet mcmc-output -o' to refresh it.")
+        return
+    from jaxoplanet2.infer.mcmc_output import mcmc_output as _mcmc_output
+
+    for path in _mcmc_output(dir_path, allow_unsupported=allow_unsupported):
+        if not quiet:
+            typer.echo(f"wrote {path}")
+
+
+@app.command()
+def mcmc_output(
+    dir_path: str = typer.Argument(..., help="path to the fit directory"),
+    overwrite: bool = typer.Option(False, "--overwrite", "-o"),
+    quiet: bool = typer.Option(False, "--quiet", "-q"),
+    file_extension: str = typer.Option(
+        ".pdf", "--file-extension", "-e", help="figure format: pdf, png, jpg, svg, webp"
+    ),
+    allow_unsupported: bool = typer.Option(False, "--allow-unsupported"),
+) -> None:
+    """Tables (fitted + derived), LaTeX, corner and fit plots from MCMC samples."""
+    from jaxoplanet2.infer.mcmc_output import mcmc_output as _mcmc_output
+
+    try:
+        paths = _mcmc_output(
+            dir_path,
+            file_extension=file_extension,
+            overwrite=overwrite,
+            allow_unsupported=allow_unsupported,
+        )
+    except (FileExistsError, FileNotFoundError, ValueError) as e:
+        typer.echo(f"Error: {e}")
+        raise typer.Exit(1) from e
     if not quiet:
-        typer.echo(f"Run 'jaxoplanet mcmc-output {dir_path}' for tables and plots.")
+        for path in paths:
+            typer.echo(f"wrote {path}")
 
 
 def main() -> None:

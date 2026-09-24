@@ -82,8 +82,11 @@ def test_mcmc_fit_writes_samples_and_diagnostics(tiny_fit):
 def test_cli_mcmc_fit(tiny_fit):
     result = runner.invoke(app, ["mcmc-fit", str(tiny_fit), "--no-progress"])
     assert result.exit_code == 0, result.output
-    assert "mcmc-output" in result.output or "mcmc_table" in result.output
     assert (tiny_fit / "results" / "mcmc_samples.npz").exists()
+    # the first fit also writes the output tables, as allesfitter2 does
+    assert (tiny_fit / "results" / "mcmc_table.csv").exists()
+    again = runner.invoke(app, ["mcmc-fit", str(tiny_fit), "--no-progress"])
+    assert "mcmc-output -o" in again.output
 
 
 def test_cli_mcmc_fit_rejects_invalid_directory(tiny_fit):
@@ -107,3 +110,18 @@ def test_posterior_contains_the_truth(tmp_path):
         assert result.r_hat[name] < 1.05
     assert result.divergences == 0  # with the default target_accept of 0.99
     assert np.isfinite(samples["b_rsuma"]).all()
+
+
+def test_importing_jaxoplanet2_leaves_the_jax_backend_configurable():
+    import subprocess
+    import sys
+
+    code = (
+        "import numpyro; import jaxoplanet2.cli, jaxoplanet2.infer.mcmc;"
+        "numpyro.set_host_device_count(3); import jax;"
+        "print(jax.local_device_count())"
+    )
+    out = subprocess.run(
+        [sys.executable, "-c", code], capture_output=True, text=True, check=False
+    )
+    assert out.stdout.strip() == "3", out.stderr
