@@ -81,6 +81,11 @@ def test_neutral_ellc_extras_are_ignored():
     assert set(check.ignored) == {"b_sbratio_tess", "host_gdc_tess"}
 
 
+def test_leftover_dilution_of_other_instruments_is_ignored_at_zero():
+    rows = FULL_PHOT_PARAMS + "dil_zess,0,0,,,\n"
+    assert check_params(settings(PHOT), table(rows)).ignored == ("dil_zess",)
+
+
 def test_fitted_or_nonzero_unsupported_extras_are_reported():
     rows = FULL_PHOT_PARAMS + (
         "b_sbratio_tess,0.1,0,,,\n"

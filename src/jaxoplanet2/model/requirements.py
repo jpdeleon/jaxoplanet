@@ -39,6 +39,8 @@ NEUTRAL_EXTRAS: tuple[tuple[re.Pattern[str], float | None], ...] = (
     (re.compile(r"[^_]+_geom_albedo_.+"), 0.0),
     (re.compile(r"[^_]+_phase_curve_.+"), 0.0),
     (re.compile(r"[^_]+_gdc_.+"), None),
+    # dilution of an instrument that is not photometric (a leftover row)
+    (re.compile(r"dil_.+"), 0.0),
 )
 TTV_PARAM = re.compile(r"[^_]+_ttv_transit_\d+")
 
