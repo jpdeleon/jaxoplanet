@@ -55,6 +55,13 @@ def test_missing_header_uses_default_columns():
     assert t["b_rr"].truth == pytest.approx(0.09)
 
 
+def test_inline_comments_are_stripped_like_genfromtxt():
+    t = parse_params_text(
+        "#name,value,fit,bounds,label,unit\nb_rr,0.1,1,uniform 0 1,r, # was 0.2\n"
+    )
+    assert t["b_rr"].unit == ""
+
+
 def test_values_mapping_and_contains():
     t = parse_params_text(EXAMPLE)
     assert "b_rr" in t

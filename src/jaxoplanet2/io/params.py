@@ -99,7 +99,9 @@ def parse_params_text(text: str) -> ParamTable:
         if header is not None:
             columns = header
             continue
-        if not line or line.startswith("#"):
+        # genfromtxt(comments="#") semantics: drop inline comments too
+        line = line.split("#", 1)[0].strip()
+        if not line:
             continue
         try:
             params.append(_parse_row(line, columns))
