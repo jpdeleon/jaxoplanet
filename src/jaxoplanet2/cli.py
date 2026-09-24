@@ -6,7 +6,7 @@ Mirrors the allesfitter CLI (``show-initial-guess``, ``optimize``, ``mcmc-fit``,
 
 import typer
 
-from jaxoplanet2._version import __version__
+from jaxoplanet2._metadata import __version__
 
 app = typer.Typer(
     name="jaxoplanet",
