@@ -13,6 +13,8 @@ from jaxoplanet2.model.numpyro_model import (
     build_model,
     initial_values,
     log_prob_parts,
+    mean_components,
+    observation,
 )
 from jaxoplanet2.model.photometry import flux_model
 from jaxoplanet2.model.rv import rv_model
@@ -82,6 +84,28 @@ def test_log_density_is_differentiable(fit):
     assert all(np.isfinite(float(g)) for g in grads.values())
 
 
+def test_sample_offset_baseline_shifts_the_mean(tmp_path):
+    import shutil
+
+    shutil.copytree(GOLDEN / "circular_batman", tmp_path / "fit")
+    settings = tmp_path / "fit" / "settings.csv"
+    settings.write_text(
+        settings.read_text().replace(
+            "baseline_flux_tess,none", "baseline_flux_tess,sample_offset"
+        )
+    )
+    with (tmp_path / "fit" / "params.csv").open("a") as f:
+        f.write("baseline_offset_flux_tess,0.001,1,uniform -0.01 0.01,off,,\n")
+    fit = load_fit_directory(tmp_path / "fit")
+    data = fit.data["tess"]
+    values = fit.params.values()
+    mu, base, sigma = mean_components(values, fit.settings, data)
+    np.testing.assert_allclose(base, 0.001)
+    dist = observation(values, fit.settings, data)
+    np.testing.assert_allclose(dist.mean, np.asarray(mu) + 0.001)
+    assert "baseline_offset_flux_tess" in initial_values(fit)
+
+
 def test_unimplemented_baseline_is_rejected(tmp_path):
     import shutil
 
@@ -89,9 +113,9 @@ def test_unimplemented_baseline_is_rejected(tmp_path):
     settings = tmp_path / "fit" / "settings.csv"
     settings.write_text(
         settings.read_text().replace(
-            "baseline_flux_tess,none", "baseline_flux_tess,hybrid_offset"
+            "baseline_flux_tess,none", "baseline_flux_tess,sample_GP_real"
         )
     )
     fit = load_fit_directory(tmp_path / "fit")
-    with pytest.raises(NotImplementedError, match="hybrid_offset"):
+    with pytest.raises(NotImplementedError, match="sample_GP_real"):
         log_prob_parts(fit, initial_values(fit))

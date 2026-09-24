@@ -19,6 +19,7 @@ from matplotlib.gridspec import GridSpec  # noqa: E402
 from jaxoplanet2._jax import configure_jax  # noqa: E402
 from jaxoplanet2.fitdir import FitDirectory, load_fit_directory  # noqa: E402
 from jaxoplanet2.io.settings import Settings  # noqa: E402
+from jaxoplanet2.model.numpyro_model import mean_components  # noqa: E402
 from jaxoplanet2.model.parameterization import companion_geometry  # noqa: E402
 from jaxoplanet2.model.photometry import flux_model  # noqa: E402
 from jaxoplanet2.model.rv import rv_model  # noqa: E402
@@ -85,7 +86,9 @@ def plot_instrument(fit: FitDirectory, inst: str) -> plt.Figure:
     data = fit.data[inst]
     settings = fit.settings
     total = np.asarray(companion_signal(values, settings, inst, data.time))
-    baseline = 1.0 if data.kind == "flux" else 0.0
+    level = 1.0 if data.kind == "flux" else 0.0
+    instrumental = np.asarray(mean_components(values, settings, data)[1])
+    model = level + total + instrumental
     ylabel = "relative flux" if data.kind == "flux" else "RV"
     companions = _companions(settings, inst) or (None,)
 
@@ -94,9 +97,9 @@ def plot_instrument(fit: FitDirectory, inst: str) -> plt.Figure:
     ax_data = fig.add_subplot(grid[0, :])
     ax_res = fig.add_subplot(grid[1, :], sharex=ax_data)
     ax_data.errorbar(data.time, data.y, data.yerr, fmt=".", color="0.6", ms=2, zorder=0)
-    ax_data.plot(data.time, baseline + total, "C0-", lw=1)
+    ax_data.plot(data.time, model, "C0-", lw=1)
     ax_data.set(ylabel=ylabel, title=f"{inst}: initial guess")
-    ax_res.errorbar(data.time, data.y - baseline - total, data.yerr, fmt=".", ms=2)
+    ax_res.errorbar(data.time, data.y - model, data.yerr, fmt=".", ms=2)
     ax_res.axhline(0.0, color="C0")
     ax_res.set(xlabel="time [BJD]", ylabel="residuals")
 
@@ -105,15 +108,18 @@ def plot_instrument(fit: FitDirectory, inst: str) -> plt.Figure:
         if c is None:
             ax.set_axis_off()
             continue
-        _plot_fold(ax, fit, inst, c, total=total, baseline=baseline, ylabel=ylabel)
+        _plot_fold(
+            ax, fit, inst, c, remove=total + instrumental, level=level, ylabel=ylabel
+        )
     return fig
 
 
-def _plot_fold(ax, fit, inst, c, *, total, baseline, ylabel) -> None:
+def _plot_fold(ax, fit, inst, c, *, remove, level, ylabel) -> None:
+    """Phase-fold companion ``c``; ``remove`` is everything but its own signal."""
     values, settings, data = fit.params.values(), fit.settings, fit.data[inst]
     epoch, period = float(values[f"{c}_epoch"]), float(values[f"{c}_period"])
     own = np.asarray(companion_signal(values, settings, inst, data.time, c))
-    y = data.y - (total - own)  # remove the other companions
+    y = data.y - (remove - own)  # baseline and the other companions
     window = _fold_window(values, settings, inst, c)
     scale = HOURS if data.kind == "flux" else 1.0 / period
     dt = phase_offset(data.time, epoch, period)
@@ -125,7 +131,7 @@ def _plot_fold(ax, fit, inst, c, *, total, baseline, ylabel) -> None:
         ax.plot(xb * scale, yb, "o", color="C1", ms=4, zorder=3)
     fine = np.linspace(-window, window, FOLD_POINTS)
     model = np.asarray(companion_signal(values, settings, inst, epoch + fine, c))
-    ax.plot(fine * scale, baseline + model, "C0-")
+    ax.plot(fine * scale, level + model, "C0-")
     xlabel = "hours from mid-transit" if data.kind == "flux" else "phase"
     ax.set(xlabel=xlabel, ylabel=ylabel, title=f"companion {c}")
 
