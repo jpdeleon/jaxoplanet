@@ -46,6 +46,13 @@ def test_comment_lines_are_skipped(tmp_path):
     assert len(load_dataset(tmp_path, "tess", "flux")) == 2
 
 
+def test_inline_comments_are_stripped(tmp_path):
+    write(tmp_path / "tess.csv", "1,1,0.1 # first\n2,1,0.1\n")
+    np.testing.assert_array_equal(
+        load_dataset(tmp_path, "tess", "flux").yerr, [0.1, 0.1]
+    )
+
+
 def test_arrays_are_read_only(tmp_path):
     write(tmp_path / "tess.csv", "1,1,0.1\n2,1,0.1\n")
     d = load_dataset(tmp_path, "tess", "flux")

@@ -56,8 +56,9 @@ def load_dataset(fit_dir: str | Path, inst: str, kind: Kind) -> Dataset:
 def _read_columns(path: Path) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     rows = []
     for raw_line in path.read_text().splitlines():
-        line = raw_line.strip()
-        if not line or line.startswith("#"):
+        # genfromtxt(comments="#") semantics, as in allesfitter
+        line = raw_line.split("#", 1)[0].strip()
+        if not line:
             continue
         cells = line.split(",")
         if len(cells) < 3:
