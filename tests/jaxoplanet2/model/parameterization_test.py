@@ -142,3 +142,31 @@ def test_host_density_from_kepler():
     rsuma = 1.0 / 215.032
     rho = host_density_cgs(values(b_rr=0.0, b_rsuma=rsuma, b_period=365.25), "b")
     assert rho == pytest.approx(1.41, rel=0.01)
+
+
+def test_fixed_zero_eccentricity_is_detected_statically():
+    from jaxoplanet2.model.parameterization import is_fixed_circular
+
+    assert is_fixed_circular(values(), "b")
+    assert is_fixed_circular(values(b_f_c=0.0, b_f_s=0.0), "b")
+    assert not is_fixed_circular(values(b_f_c=0.1), "b")
+    jax.jit(lambda f_c: assert_not_circular(values(b_f_c=f_c)))(0.0)
+
+
+def assert_not_circular(v):
+    from jaxoplanet2.model.parameterization import is_fixed_circular
+
+    assert not is_fixed_circular(v, "b")  # a traced value may become non-zero
+    return 0.0
+
+
+def test_circular_fast_path_matches_the_general_orbit():
+    t = values()["b_epoch"] + np.linspace(-0.3, 0.3, 101)
+    fast = companion_orbit(values(), "b").relative_position(t)
+    general = jax.jit(
+        lambda f_c: companion_orbit(values(b_f_c=f_c, b_f_s=f_c), "b").relative_position(
+            t
+        )
+    )(0.0)
+    for a, b in zip(fast, general, strict=True):
+        np.testing.assert_allclose(a, b, atol=1e-10)

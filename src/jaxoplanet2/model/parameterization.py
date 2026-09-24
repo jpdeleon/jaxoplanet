@@ -120,24 +120,43 @@ def mid_eclipse_offset(
     return period * d_mean / (2.0 * jnp.pi)
 
 
+def is_fixed_circular(values: Mapping[str, jax.Array | float], c: str) -> bool:
+    """True if ``f_c`` and ``f_s`` are known, before tracing, to be zero.
+
+    Then the orbit is circular for every sample, the mid-eclipse offset is
+    exactly zero, and jaxoplanet's cheaper circular code path can be used.
+    """
+    for name in (f"{c}_f_c", f"{c}_f_s"):
+        value = values.get(name, 0.0)
+        if isinstance(value, jax.core.Tracer) or float(value) != 0.0:
+            return False
+    return True
+
+
 def companion_orbit(values: Mapping[str, jax.Array | float], c: str) -> OrbitalBody:
     """The jaxoplanet orbit of companion ``c``, in units of the host radius."""
     g = companion_geometry(values, c)
-    offset = mid_eclipse_offset(
-        g.period, g.eccentricity, g.cos_omega, g.sin_omega, g.inclination
-    )
     central = Central.from_orbital_properties(
         period=g.period, semimajor=g.a_over_rstar, radius=1.0
     )
+    common = {
+        "period": g.period,
+        "inclination": g.inclination,
+        "radius": g.rr,
+        "radial_velocity_semiamplitude": g.K,
+    }
+    if is_fixed_circular(values, c):
+        system = System(central).add_body(time_transit=g.epoch, **common)
+        return system.bodies[0]
+    offset = mid_eclipse_offset(
+        g.period, g.eccentricity, g.cos_omega, g.sin_omega, g.inclination
+    )
     system = System(central).add_body(
-        period=g.period,
         time_transit=g.epoch - offset,
-        inclination=g.inclination,
         eccentricity=g.eccentricity,
         cos_omega_peri=g.cos_omega,
         sin_omega_peri=g.sin_omega,
-        radius=g.rr,
-        radial_velocity_semiamplitude=g.K,
+        **common,
     )
     return system.bodies[0]
 

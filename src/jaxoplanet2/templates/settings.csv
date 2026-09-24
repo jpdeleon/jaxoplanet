@@ -47,5 +47,6 @@ use_host_density_prior,False
 # jx_x64,True
 # jx_seed,42
 # jx_num_chains,2
-# jx_nuts_target_accept,0.9
+# jx_nuts_dense_mass,True
+# jx_nuts_target_accept,0.99
 # jx_nuts_max_tree_depth,10

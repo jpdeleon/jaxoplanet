@@ -72,8 +72,12 @@ class JxSettings:
     x64: bool = True
     seed: int = 42
     num_chains: int | None = None  # None: derive from mcmc_nwalkers
-    nuts_target_accept: float = 0.9
+    # 0.99: zero divergences on a synthetic transit, vs 47/600 at 0.9 (see #23)
+    nuts_target_accept: float = 0.99
     nuts_max_tree_depth: int = 10
+    # transit posteriors are strongly correlated (rr, rsuma, cosi): a dense
+    # mass matrix needs ~2.6x fewer leapfrog steps than a diagonal one
+    nuts_dense_mass: bool = True
     optimizer: str = "lbfgs"
 
 
@@ -317,5 +321,6 @@ def _build_jx(raw: Mapping[str, str]) -> JxSettings:
         nuts_max_tree_depth=_typed(
             raw, "jx_nuts_max_tree_depth", int, d.nuts_max_tree_depth
         ),
+        nuts_dense_mass=_typed(raw, "jx_nuts_dense_mass", _bool, d.nuts_dense_mass),
         optimizer=_typed(raw, "jx_optimizer", str, d.optimizer),
     )
