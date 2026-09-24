@@ -109,5 +109,56 @@ def show_initial_guess(
             typer.echo(f"wrote {path}")
 
 
+@app.command()
+def optimize(  # noqa: PLR0917 (typer maps each option to a parameter)
+    dir_path: str = typer.Argument(..., help="path to the fit directory"),
+    method: str = typer.Option(
+        "L-BFGS-B",
+        "--method",
+        "-m",
+        help="L-BFGS-B, TNC, SLSQP, Nelder-Mead, Powell, differential_evolution, "
+        "dual_annealing",
+    ),
+    restarts: int = typer.Option(1, "--restarts", "-n", help="number of restarts"),
+    seed: int = typer.Option(42, "--seed", help="random seed"),
+    maxfevals: int | None = typer.Option(
+        None, "--maxfevals", help="per-restart iteration budget"
+    ),
+    no_update: bool = typer.Option(
+        False, "--no-update", help="never rewrite params.csv, even if accepted"
+    ),
+    skip_bounds_check: bool = typer.Option(
+        False,
+        "--skip-bounds-check",
+        help="accept optima on a prior bound (e.g. cosi=0 for a central transit)",
+    ),
+    quiet: bool = typer.Option(False, "--quiet", "-q"),
+    allow_unsupported: bool = typer.Option(False, "--allow-unsupported"),
+) -> None:
+    """Maximise the posterior to warm-start MCMC / nested sampling."""
+    from jaxoplanet2.infer.optimize import OptimizeError, optimize as _optimize
+    from jaxoplanet2.plots.initial_guess import show_initial_guess as _show
+
+    try:
+        result = _optimize(
+            dir_path,
+            method=method,
+            n_restarts=restarts,
+            seed=seed,
+            maxiter=maxfevals,
+            update_params=not no_update,
+            skip_bounds_check=skip_bounds_check,
+            quiet=quiet,
+            allow_unsupported=allow_unsupported,
+        )
+    except OptimizeError as e:
+        typer.echo(f"Error: {e}")
+        raise typer.Exit(1) from e
+    if result.accepted and not no_update:
+        if not quiet:
+            typer.echo("Optimization accepted; refreshing initial-guess plots.")
+        _show(dir_path, allow_unsupported=allow_unsupported)
+
+
 def main() -> None:
     app()
