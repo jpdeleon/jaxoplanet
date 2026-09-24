@@ -27,19 +27,29 @@ class Dataset:
     time: np.ndarray
     y: np.ndarray
     yerr: np.ndarray
+    # mean error of the *whole* file, kept through select(): allesfitter
+    # normalises photometric errors by it before fast_fit windowing
+    yerr_mean: float | None = None
 
     def __post_init__(self) -> None:
         for name in ("time", "y", "yerr"):
             arr = np.array(getattr(self, name), dtype=float)
             arr.setflags(write=False)
             object.__setattr__(self, name, arr)
+        if self.yerr_mean is None:
+            object.__setattr__(self, "yerr_mean", float(np.mean(self.yerr)))
 
     def __len__(self) -> int:
         return len(self.time)
 
     def select(self, mask: np.ndarray) -> "Dataset":
         return Dataset(
-            self.inst, self.kind, self.time[mask], self.y[mask], self.yerr[mask]
+            self.inst,
+            self.kind,
+            self.time[mask],
+            self.y[mask],
+            self.yerr[mask],
+            yerr_mean=self.yerr_mean,
         )
 
 
