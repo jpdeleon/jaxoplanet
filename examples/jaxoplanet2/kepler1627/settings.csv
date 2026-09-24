@@ -1,0 +1,34 @@
+#name,value
+###############################################################################,
+# Kepler-1627 b: transit + starspot variability (SHO GP), Kepler long cadence,
+###############################################################################,
+companions_phot,b
+companions_rv,
+inst_phot,kepler
+inst_rv,
+###############################################################################,
+# Fit only +-0.25 d around each of the ~200 transits,
+###############################################################################,
+fast_fit,True
+fast_fit_width,0.5
+shift_epoch,True
+inst_for_b_epoch,all
+###############################################################################,
+# Long cadence: integrate the model over the 29.4-min exposures,
+###############################################################################,
+t_exp_kepler,0.0204335
+t_exp_n_int_kepler,10
+###############################################################################,
+# Limb darkening, errors, stellar variability,
+###############################################################################,
+host_ld_law_kepler,quad
+error_flux_kepler,sample
+baseline_flux_kepler,sample_GP_SHO
+use_host_density_prior,False
+###############################################################################,
+# MCMC (NUTS): chains = min(nwalkers, cores); burn = warmup,
+###############################################################################,
+mcmc_nwalkers,4
+mcmc_total_steps,1000
+mcmc_burn_steps,500
+mcmc_thin_by,1
