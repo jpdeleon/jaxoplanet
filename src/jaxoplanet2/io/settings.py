@@ -7,7 +7,14 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import TypeVar
 
-from jaxoplanet2.io._settings_schema import BOOLS, EMPTY, Kind, match_rule
+from jaxoplanet2.io._settings_schema import (
+    BOOLS,
+    EMPTY,
+    FALSY,
+    TRUTHY,
+    Kind,
+    match_rule,
+)
 
 SETTINGS_FILE = "settings.csv"
 T = TypeVar("T")
@@ -133,6 +140,8 @@ def _read_rows(text: str) -> dict[str, str]:
         line = raw_line.strip()
         if not line or line.startswith("#"):
             continue
+        # allesfitter reads with genfromtxt(comments="#"): inline comments go
+        line = line.split("#", 1)[0].strip()
         key, _, value = line.partition(",")
         key, value = _rename_legacy(key.strip()), value.strip()
         if key in rows:
@@ -202,6 +211,11 @@ def _check_supported(
                     stacklevel=4,
                 )
                 continue
+        if rule.kind is Kind.OFF_ONLY and rule.allowed is FALSY:
+            # allesfitter's set_bool: anything but true/1 (e.g. "No") is off
+            if value.lower() in TRUTHY:
+                problems[key] = f"'{value}' is only supported while switched off"
+            continue
         if rule.allowed is not None and value.lower() not in rule.allowed:
             off_only = rule.kind is Kind.OFF_ONLY
             what = "only supported while switched off" if off_only else "unsupported"

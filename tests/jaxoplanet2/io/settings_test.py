@@ -165,6 +165,24 @@ def test_switched_off_features_are_accepted():
         parse(text)
 
 
+def test_inline_comments_are_stripped_like_genfromtxt():
+    s = parse(
+        "companions_phot,b\ninst_phot,tess\nbaseline_flux_tess,sample_GP_SHO #Matern32\n"
+    )
+    assert s.baseline[("flux", "tess")] == "sample_GP_SHO"
+
+
+@pytest.mark.parametrize("value", ["No", "no", "False", "0", "off"])
+def test_off_only_switches_use_allesfitter_set_bool(value):
+    s = parse("companions_rv,b\ninst_rv,harps\nb_flux_weighted_harps," + value + "\n")
+    assert s.raw["b_flux_weighted_harps"] == value
+
+
+def test_off_only_switch_turned_on_is_unsupported():
+    with pytest.raises(UnsupportedSettingsError, match="flux_weighted"):
+        parse("companions_rv,b\ninst_rv,harps\nb_flux_weighted_harps,True\n")
+
+
 def test_keys_for_unlisted_instruments_are_ignored_with_warning():
     with pytest.warns(UserWarning, match="host_ld_law_kepler"):
         s = parse("companions_phot,b\ninst_phot,tess\nhost_ld_law_kepler,quad\n")

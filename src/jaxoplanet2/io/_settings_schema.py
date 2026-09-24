@@ -34,6 +34,9 @@ BASELINES = frozenset(
     }
 )
 BOOLS = frozenset({"true", "false", "1", "0"})
+TRUTHY = frozenset({"true", "1"})
+# marker for off-only switches read with allesfitter's set_bool semantics
+FALSY = frozenset({"<not true>"})
 EMPTY = frozenset({"", "none"})
 
 
@@ -83,11 +86,11 @@ RULES: tuple[Rule, ...] = (
     _rule(r"mcmc_(pre_run_loops|pre_run_steps|moves)", I),
     # features jaxoplanet2 does not have: fine while switched off
     _rule(r"(secondary_eclipse|phase_curve|phase_variations|mask_transit)", O,
-          allowed=frozenset({"false", "0"})),
+          allowed=FALSY),
     _rule(r"N_flares", O, allowed=EMPTY | {"0"}),
     _rule(r"(host|[^_]+)_N_spots_.+", O, allowed=EMPTY | {"0"}),
     _rule(r"stellar_var_(flux|rv)", O, allowed=EMPTY),
-    _rule(r"(host|[^_]+)_flux_weighted_.+", O, allowed=frozenset({"false", "0"})),
+    _rule(r"(host|[^_]+)_flux_weighted_.+", O, allowed=FALSY),
     _rule(r"[^_]+_ld_law_.+", O, allowed=EMPTY),
 )  # fmt: skip
 
