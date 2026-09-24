@@ -3,12 +3,9 @@ import numpy as np
 import pytest
 
 from jaxoplanet2.io.settings import parse_settings_text
+from jaxoplanet2.model.exposure import exposure_nodes
 from jaxoplanet2.model.parameterization import companion_orbit, mid_eclipse_offset
-from jaxoplanet2.model.photometry import (
-    exposure_nodes,
-    flux_model,
-    ld_coefficients,
-)
+from jaxoplanet2.model.photometry import flux_model, ld_coefficients
 
 batman = pytest.importorskip("batman")
 jax.config.update("jax_enable_x64", True)

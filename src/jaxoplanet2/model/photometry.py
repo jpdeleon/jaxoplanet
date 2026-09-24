@@ -15,6 +15,7 @@ import numpy as np
 
 from jaxoplanet.light_curves import limb_dark_light_curve
 from jaxoplanet2.io.settings import Settings
+from jaxoplanet2.model.exposure import integrate_exposure
 from jaxoplanet2.model.parameterization import companion_orbit
 
 Values = Mapping[str, jax.Array | float]
@@ -45,14 +46,6 @@ def ld_coefficients(values: Values, settings: Settings, inst: str) -> jax.Array:
     return jnp.stack([2.0 * sqrt_q1 * q2, sqrt_q1 * (1.0 - 2.0 * q2)])
 
 
-def exposure_nodes(t_exp: float, n_int: int) -> tuple[np.ndarray, np.ndarray]:
-    """allesfitter's trapezoid sub-exposure offsets and weights."""
-    offsets = (np.arange(n_int) / (n_int - 1.0) - 0.5) * t_exp
-    weights = np.ones(n_int) / (n_int - 1.0)
-    weights[[0, -1]] *= 0.5
-    return offsets, weights
-
-
 def _instantaneous_flux(values: Values, settings: Settings, inst: str, time):
     u = ld_coefficients(values, settings, inst)
     depth = 0.0
@@ -66,14 +59,11 @@ def flux_model(
     values: Values, settings: Settings, inst: str, time: np.ndarray | jax.Array
 ) -> jax.Array:
     """Normalised model flux of instrument ``inst`` at ``time``."""
-    time = jnp.asarray(time, dtype=float)
-    t_exp, n_int = settings.t_exp[inst], settings.t_exp_n_int[inst]
-    if t_exp and n_int and n_int > 1:
-        offsets, weights = exposure_nodes(t_exp, n_int)
-        grid = time[:, None] + offsets[None, :]
-        flux = _instantaneous_flux(values, settings, inst, grid.ravel())
-        flux = flux.reshape(grid.shape) @ weights
-    else:
-        flux = _instantaneous_flux(values, settings, inst, time)
+    flux = integrate_exposure(
+        lambda t: _instantaneous_flux(values, settings, inst, t),
+        time,
+        settings.t_exp[inst],
+        settings.t_exp_n_int[inst],
+    )
     dil = values.get(f"dil_{inst}", 0.0)
     return 1.0 + (flux - 1.0) * (1.0 - dil)
