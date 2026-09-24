@@ -1,3 +1,35 @@
+# jaxoplanet2
+
+_[allesfitter](https://github.com/MNGuenther/allesfitter)-style transit and RV fitting, powered by jaxoplanet_
+
+---
+
+**jaxoplanet2** is a hard fork of
+[exoplanet-dev/jaxoplanet](https://github.com/exoplanet-dev/jaxoplanet). It ships
+two import packages:
+
+- `jaxoplanet`: the upstream library, vendored unchanged and synced regularly
+  from upstream.
+- `jaxoplanet2`: a directory-driven fitter that reads allesfitter's
+  `params.csv`, `settings.csv` and `<inst>.csv` files and runs them with
+  jaxoplanet + NumPyro:
+
+```bash
+uv run jaxoplanet show-initial-guess my_fit/
+uv run jaxoplanet optimize my_fit/
+uv run jaxoplanet mcmc-fit my_fit/
+```
+
+> [!WARNING]
+> The `jaxoplanet2` distribution provides the `jaxoplanet` module. Do not install
+> it alongside the upstream `jaxoplanet` distribution in the same environment,
+> because the two would overwrite each other's files.
+
+See [issue #1](https://github.com/jpdeleon/jaxoplanet2/issues/1) for the roadmap.
+The upstream jaxoplanet README follows.
+
+---
+
 # jaxoplanet
 
 _Astronomical time series analysis with JAX_
