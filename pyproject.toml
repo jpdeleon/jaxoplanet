@@ -53,6 +53,8 @@ dev = [
 ]
 test = ["pytest", "pytest-xdist", "exoplanet-core", "batman-package", "radvel", "orbitize"]
 test-math = ["mpmath", "gmpy2"]
+# jaxoplanet2: nested sampling (jaxoplanet ns-fit)
+ns = ["jaxns"]
 docs = [
     "matplotlib",
     "arviz[matplotlib]>=1.0",

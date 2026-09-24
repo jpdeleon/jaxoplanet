@@ -26,8 +26,6 @@ from jaxoplanet2.infer.mcmc import load_samples  # noqa: E402
 from jaxoplanet2.plots.initial_guess import EXTENSIONS, plot_instrument  # noqa: E402
 
 TABLE_FILE = "mcmc_table.csv"
-DERIVED_FILE = "mcmc_derived_table.csv"
-LATEX_FILE = "mcmc_latex_table.txt"
 
 
 def _fmt(x: float) -> str:
@@ -87,32 +85,39 @@ def _corner(path: Path, fit: FitDirectory, flat: dict[str, np.ndarray]) -> None:
     plt.close(fig)
 
 
-def mcmc_output(
+def posterior_output(
     fit_dir: str | Path,
+    sampler: str,
     *,
     file_extension: str = "pdf",
     overwrite: bool = False,
     allow_unsupported: bool = False,
 ) -> list[Path]:
-    """Write tables and figures; returns the files written."""
+    """Tables and figures from ``results/<sampler>_samples.npz``.
+
+    ``sampler`` is ``mcmc`` or ``ns``; every file is prefixed with it, as in
+    allesfitter (``mcmc_table.csv``, ``ns_table.csv``, ...).
+    """
     ext = file_extension.lstrip(".").lower()
     if ext not in EXTENSIONS:
         raise ValueError(f"unsupported figure format '{file_extension}'")
     fit = load_fit_directory(fit_dir, allow_unsupported=allow_unsupported)
     configure_jax(fit.settings)
-    table = fit.results / TABLE_FILE
+    table = fit.results / f"{sampler}_table.csv"
     if table.exists() and not overwrite:
         raise FileExistsError(f"{table} exists; pass overwrite=True (-o) to redo")
-    samples, _ = load_samples(fit_dir)
+    samples, _ = load_samples(fit_dir, sampler)
     flat = {name: np.asarray(v).ravel() for name, v in samples.items()}
     derived = derive(flat, fit.settings, fit.star, seed=fit.settings.jx.seed)
 
+    derived_path = fit.results / f"{sampler}_derived_table.csv"
+    latex_path = fit.results / f"{sampler}_latex_table.txt"
     write_table(table, fit, flat)
-    write_derived(fit.results / DERIVED_FILE, derived)
-    write_latex(fit.results / LATEX_FILE, fit, flat, derived)
-    written = [table, fit.results / DERIVED_FILE, fit.results / LATEX_FILE]
+    write_derived(derived_path, derived)
+    write_latex(latex_path, fit, flat, derived)
+    written = [table, derived_path, latex_path]
 
-    corner_path = fit.results / f"mcmc_corner.{ext}"
+    corner_path = fit.results / f"{sampler}_corner.{ext}"
     _corner(corner_path, fit, flat)
     written.append(corner_path)
 
@@ -120,8 +125,13 @@ def mcmc_output(
     posterior = replace(fit, params=fit.params.with_values(medians))
     for inst in fit.settings.inst_all:
         fig = plot_instrument(posterior, inst, title="posterior median")
-        path = fit.results / f"mcmc_fit_{inst}.{ext}"
+        path = fit.results / f"{sampler}_fit_{inst}.{ext}"
         fig.savefig(path)
         plt.close(fig)
         written.append(path)
     return written
+
+
+def mcmc_output(fit_dir: str | Path, **kwargs) -> list[Path]:
+    """Tables and figures from the MCMC samples (see :func:`posterior_output`)."""
+    return posterior_output(fit_dir, "mcmc", **kwargs)

@@ -179,11 +179,18 @@ def _diagnostics_text(result: McmcResult, cfg: RunConfig) -> str:
     return "\n".join(lines)
 
 
-def load_samples(fit_dir: str | Path) -> tuple[dict[str, np.ndarray], dict]:
-    """(samples by parameter as (chain, draw) arrays, run metadata)."""
-    path = Path(fit_dir) / "results" / SAMPLES_FILE
+def load_samples(
+    fit_dir: str | Path, sampler: str = "mcmc"
+) -> tuple[dict[str, np.ndarray], dict]:
+    """(samples by parameter as (chain, draw) arrays, run metadata).
+
+    ``sampler`` is ``mcmc`` or ``ns`` (nested sampling stores equal-weight draws
+    as a single "chain").
+    """
+    name = f"{sampler}_samples.npz"
+    path = Path(fit_dir) / "results" / name
     if not path.is_file():
-        raise FileNotFoundError(f"no {SAMPLES_FILE}; run 'jaxoplanet mcmc-fit' first")
+        raise FileNotFoundError(f"no {name}; run 'jaxoplanet {sampler}-fit' first")
     with np.load(path) as data:
         meta = json.loads(str(data[META_KEY]))
         samples = {name: data[name] for name in meta["fitkeys"]}

@@ -45,7 +45,7 @@ jobs:
       - name: Install
         run: |
           uv venv
-          uv pip install -e ".[test]" pytest-cov setuptools  # setuptools: batman needs distutils
+          uv pip install -e ".[test,ns]" pytest-cov setuptools  # setuptools: batman needs distutils
       - name: CLI smoke test
         run: uv run --no-project jaxoplanet --help
       - name: Tests (with coverage gate)
@@ -68,6 +68,6 @@ jobs:
       - name: Install
         run: |
           uv venv
-          uv pip install -e ".[test]" setuptools
+          uv pip install -e ".[test,ns]" setuptools
       - name: Slow tests (end-to-end fits)
         run: uv run --no-project pytest tests/jaxoplanet2 -m slow -n auto
