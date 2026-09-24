@@ -18,6 +18,7 @@ from jaxoplanet2.fitdir import FitDirectory
 from jaxoplanet2.io.data import Dataset
 from jaxoplanet2.io.priors import to_distribution
 from jaxoplanet2.io.settings import Settings
+from jaxoplanet2.model.baseline import deterministic_baseline, is_gp
 from jaxoplanet2.model.noise import white_noise_sigma
 from jaxoplanet2.model.photometry import flux_model
 from jaxoplanet2.model.rv import rv_model
@@ -32,16 +33,25 @@ def signal(values: Values, settings: Settings, data: Dataset) -> jax.Array:
     return model(values, settings, data.inst, data.time)
 
 
-def observation(values: Values, settings: Settings, data: Dataset) -> dist.Distribution:
-    """Distribution of ``data.y`` given the parameter values."""
+def mean_components(
+    values: Values, settings: Settings, data: Dataset
+) -> tuple[jax.Array, jax.Array, jax.Array]:
+    """(astrophysical signal, baseline, white-noise sigma) at the data."""
     mu = signal(values, settings, data)
     sigma = white_noise_sigma(values, settings, data)
     baseline = settings.baseline[(data.kind, data.inst)]
-    if baseline.lower() != "none":
+    if is_gp(baseline):
         raise NotImplementedError(
             f"baseline_{data.kind}_{data.inst}={baseline} is not implemented yet"
         )
-    return dist.Normal(mu, sigma)
+    base = deterministic_baseline(values, settings, data, data.y - mu, sigma)
+    return mu, base, sigma
+
+
+def observation(values: Values, settings: Settings, data: Dataset) -> dist.Distribution:
+    """Distribution of ``data.y`` given the parameter values."""
+    mu, base, sigma = mean_components(values, settings, data)
+    return dist.Normal(mu + base, sigma)
 
 
 def sample_values(fit: FitDirectory) -> dict[str, jax.Array | float]:

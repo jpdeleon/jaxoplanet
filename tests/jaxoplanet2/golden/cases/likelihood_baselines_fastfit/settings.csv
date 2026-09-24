@@ -1,0 +1,17 @@
+#name,value
+companions_phot,b
+companions_rv,b
+inst_phot,tess
+inst_rv,harps
+flux_model,batman
+multiprocess,False
+shift_epoch,False
+fast_fit,True
+fast_fit_width,0.3333333333333333
+use_host_density_prior,False
+host_ld_law_tess,quad
+host_ld_law_harps,none
+error_flux_tess,sample
+error_rv_harps,sample
+baseline_flux_tess,sample_linear
+baseline_rv_harps,sample_offset
