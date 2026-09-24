@@ -41,3 +41,46 @@ python -m nox -s test
 ## How to submit changes
 
 Open a [Pull Request](https://github.com/exoplanet-dev/jaxoplanet/pulls).
+
+## jaxoplanet2 (this fork)
+
+All jaxoplanet2 code lives in `src/jaxoplanet2/` and `tests/jaxoplanet2/`. The
+vendored `src/jaxoplanet/` is never edited here. Fixes to it go upstream as PRs
+first and arrive through the sync below.
+
+### Testing the fitter
+
+```bash
+python -m nox -s jaxoplanet2        # tests + 80% coverage gate
+JAXOPLANET2_SLOW=1 python -m nox -s jaxoplanet2 -- -m slow   # end-to-end fits
+```
+
+### Syncing with upstream jaxoplanet
+
+Do this at least monthly so the fork doesn't drift:
+
+```bash
+git remote add upstream https://github.com/exoplanet-dev/jaxoplanet  # once
+git fetch upstream
+git switch main
+git merge upstream/main
+```
+
+Conflicts are expected only in files the fork deliberately changed:
+`pyproject.toml`, `README.md`, `CONTRIBUTING.md` (this section) and `noxfile.py`
+(the `jaxoplanet2` session). In each case keep both sides: upstream's changes
+plus the jaxoplanet2 additions. Then verify and push:
+
+```bash
+python -m nox -s jaxoplanet2
+python -m nox -s test-3.13          # upstream suite on the merged core
+git push origin main
+```
+
+If an upstream API change breaks `jaxoplanet2`, fix `src/jaxoplanet2` in the same
+merge PR. Never patch `src/jaxoplanet`.
+
+### Releasing
+
+Tag releases as `jaxoplanet2-vX.Y.Z`. Only those tags drive the version, and the
+upstream `vX.Y.Z` tags inherited by the fork are ignored.
