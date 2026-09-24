@@ -16,9 +16,15 @@ import jax
 import numpy as np
 import pytest
 
+from jaxoplanet2.fitdir import load_fit_directory
 from jaxoplanet2.io.data import load_datasets
 from jaxoplanet2.io.params import load_params
 from jaxoplanet2.io.settings import load_settings
+from jaxoplanet2.model.numpyro_model import (
+    initial_values,
+    log_prob_parts,
+    mean_components,
+)
 from jaxoplanet2.model.photometry import flux_model
 from jaxoplanet2.model.rv import rv_model
 
@@ -28,6 +34,9 @@ HERE = Path(__file__).parent
 CASES = sorted(p.name for p in (HERE / "cases").iterdir())
 FLUX_ATOL = {"batman": 1e-6, "ellc": 1e-5}
 RV_ATOL = 5e-5  # km/s
+# model differences allowed in the likelihood comparison: batman light curves
+# agree to <0.04 ppm; RVs always come from ellc (~2 cm/s)
+LOGLIKE_MODEL_DELTA = {"flux": 1e-7, "rv": RV_ATOL}
 
 
 def test_every_case_has_a_reference():
@@ -51,6 +60,40 @@ def test_model_matches_allesfitter(name):
     for inst in settings.inst_rv:
         model = np.asarray(rv_model(values, settings, inst, data[inst].time))
         np.testing.assert_allclose(model, reference[inst], atol=RV_ATOL)
+
+
+def _loglike_tolerance(residual, sigma, delta):
+    """Largest log-likelihood change a model error of ``delta`` can cause."""
+    return float(
+        np.sum(np.abs(residual) * delta / sigma**2 + 0.5 * (delta / sigma) ** 2)
+    )
+
+
+@pytest.mark.parametrize("name", CASES)
+def test_log_likelihood_matches_allesfitter(name):
+    """Noise model, error normalisation, baselines and fast_fit all agree.
+
+    Any difference must be explained by the (tested) model differences alone,
+    so the tolerance is the bound those differences put on the likelihood.
+    """
+    case = HERE / "cases" / name
+    reference = np.load(HERE / f"{name}.npz")
+    fit = load_fit_directory(case)
+    if fit.settings.raw.get("flux_model") != "batman":
+        pytest.skip("ellc reference: its ~5 ppm model error dominates")
+    values = fit.params.values()
+    parts = log_prob_parts(fit, initial_values(fit))
+    for inst, loglike in parts.per_instrument.items():
+        data = fit.data[inst]
+        mu, base, sigma = (
+            np.asarray(x) for x in mean_components(values, fit.settings, data)
+        )
+        tol = _loglike_tolerance(
+            data.y - mu - base, sigma, LOGLIKE_MODEL_DELTA[data.kind]
+        )
+        np.testing.assert_allclose(
+            loglike, float(reference[f"{inst}_loglike"]), atol=tol
+        )
 
 
 @pytest.mark.parametrize("name", CASES)
