@@ -12,9 +12,9 @@ from jaxoplanet2.model.noise import gaussian_loglike, white_noise_sigma
 from jaxoplanet2.model.numpyro_model import (
     build_model,
     initial_values,
+    likelihood_site,
     log_prob_parts,
     mean_components,
-    observation,
 )
 from jaxoplanet2.model.photometry import flux_model
 from jaxoplanet2.model.rv import rv_model
@@ -101,21 +101,17 @@ def test_sample_offset_baseline_shifts_the_mean(tmp_path):
     values = fit.params.values()
     mu, base, sigma = mean_components(values, fit.settings, data)
     np.testing.assert_allclose(base, 0.001)
-    dist = observation(values, fit.settings, data)
-    np.testing.assert_allclose(dist.mean, np.asarray(mu) + 0.001)
+    distribution, observed = likelihood_site(values, fit.settings, data)
+    np.testing.assert_allclose(distribution.mean, np.asarray(mu) + 0.001)
+    np.testing.assert_array_equal(observed, data.y)
     assert "baseline_offset_flux_tess" in initial_values(fit)
 
 
-def test_unimplemented_baseline_is_rejected(tmp_path):
-    import shutil
-
-    shutil.copytree(GOLDEN / "circular_batman", tmp_path / "fit")
-    settings = tmp_path / "fit" / "settings.csv"
-    settings.write_text(
-        settings.read_text().replace(
-            "baseline_flux_tess,none", "baseline_flux_tess,sample_GP_real"
-        )
-    )
-    fit = load_fit_directory(tmp_path / "fit")
-    with pytest.raises(NotImplementedError, match="sample_GP_real"):
-        log_prob_parts(fit, initial_values(fit))
+def test_gp_baseline_observes_the_residual(tmp_path):
+    fit = load_fit_directory(GOLDEN / "gp_baselines")
+    data = fit.data["ngts"]
+    values = fit.params.values()
+    distribution, observed = likelihood_site(values, fit.settings, data)
+    mu = np.asarray(mean_components(values, fit.settings, data)[0])
+    np.testing.assert_allclose(observed, data.y - mu)
+    assert distribution.event_shape == (len(data),)

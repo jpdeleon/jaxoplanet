@@ -97,6 +97,19 @@ def test_log_likelihood_matches_allesfitter(name):
 
 
 @pytest.mark.parametrize("name", CASES)
+def test_baselines_match_allesfitter(name):
+    """Sampled, hybrid and GP (conditional mean) baselines at the data."""
+    reference = np.load(HERE / f"{name}.npz")
+    fit = load_fit_directory(HERE / "cases" / name)
+    if fit.settings.raw.get("flux_model") != "batman":
+        pytest.skip("ellc reference: its model error leaks into hybrid/GP baselines")
+    values = fit.params.values()
+    for inst, data in fit.data.items():
+        base = np.asarray(mean_components(values, fit.settings, data)[1])
+        np.testing.assert_allclose(base, reference[f"{inst}_baseline"], atol=1e-7)
+
+
+@pytest.mark.parametrize("name", CASES)
 def test_references_contain_a_real_signal(name):
     """Guard against a vacuous comparison (e.g. data that misses every transit)."""
     reference = np.load(HERE / f"{name}.npz")

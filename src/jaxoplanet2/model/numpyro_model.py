@@ -19,6 +19,7 @@ from jaxoplanet2.io.data import Dataset
 from jaxoplanet2.io.priors import to_distribution
 from jaxoplanet2.io.settings import Settings
 from jaxoplanet2.model.baseline import deterministic_baseline, is_gp
+from jaxoplanet2.model.gp import residual_process
 from jaxoplanet2.model.noise import white_noise_sigma
 from jaxoplanet2.model.photometry import flux_model
 from jaxoplanet2.model.rv import rv_model
@@ -36,22 +37,34 @@ def signal(values: Values, settings: Settings, data: Dataset) -> jax.Array:
 def mean_components(
     values: Values, settings: Settings, data: Dataset
 ) -> tuple[jax.Array, jax.Array, jax.Array]:
-    """(astrophysical signal, baseline, white-noise sigma) at the data."""
+    """(astrophysical signal, baseline, white-noise sigma) at the data.
+
+    For a GP baseline, the baseline is the GP's conditional mean given the
+    residuals, which is what allesfitter plots and subtracts.
+    """
     mu = signal(values, settings, data)
     sigma = white_noise_sigma(values, settings, data)
-    baseline = settings.baseline[(data.kind, data.inst)]
-    if is_gp(baseline):
-        raise NotImplementedError(
-            f"baseline_{data.kind}_{data.inst}={baseline} is not implemented yet"
-        )
-    base = deterministic_baseline(values, settings, data, data.y - mu, sigma)
+    residual = data.y - mu
+    if is_gp(settings.baseline[(data.kind, data.inst)]):
+        gp = residual_process(values, settings, data, sigma)
+        base = gp.condition(residual).gp.loc
+    else:
+        base = deterministic_baseline(values, settings, data, residual, sigma)
     return mu, base, sigma
 
 
-def observation(values: Values, settings: Settings, data: Dataset) -> dist.Distribution:
-    """Distribution of ``data.y`` given the parameter values."""
-    mu, base, sigma = mean_components(values, settings, data)
-    return dist.Normal(mu + base, sigma)
+def likelihood_site(
+    values: Values, settings: Settings, data: Dataset
+) -> tuple[dist.Distribution, jax.Array]:
+    """(distribution, observed value) of one instrument's likelihood."""
+    mu = signal(values, settings, data)
+    sigma = white_noise_sigma(values, settings, data)
+    residual = jnp.asarray(data.y) - mu
+    if is_gp(settings.baseline[(data.kind, data.inst)]):
+        gp = residual_process(values, settings, data, sigma)
+        return gp.numpyro_dist(), residual
+    base = deterministic_baseline(values, settings, data, residual, sigma)
+    return dist.Normal(mu + base, sigma), jnp.asarray(data.y)
 
 
 def sample_values(fit: FitDirectory) -> dict[str, jax.Array | float]:
@@ -66,11 +79,8 @@ def build_model(fit: FitDirectory) -> Callable[[], None]:
     def model() -> None:
         values = sample_values(fit)
         for inst, data in fit.data.items():
-            numpyro.sample(
-                OBS_PREFIX + inst,
-                observation(values, fit.settings, data),
-                obs=jnp.asarray(data.y),
-            )
+            distribution, observed = likelihood_site(values, fit.settings, data)
+            numpyro.sample(OBS_PREFIX + inst, distribution, obs=observed)
 
     return model
 

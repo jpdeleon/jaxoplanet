@@ -62,11 +62,7 @@ def _check_parameters(
 
 
 def _check_likelihood(fit: FitDirectory, report: ValidationReport) -> None:
-    try:
-        parts = log_prob_parts(fit, initial_values(fit))
-    except NotImplementedError as e:
-        report.errors.append(str(e))
-        return
+    parts = log_prob_parts(fit, initial_values(fit))
     for inst, ll in parts.per_instrument.items():
         if not np.isfinite(ll):
             report.errors.append(
