@@ -1,0 +1,15 @@
+#name,value
+companions_phot,b c
+companions_rv,
+inst_phot,tess
+inst_rv,
+flux_model,batman
+t_exp_tess,0.0208333
+t_exp_n_int_tess,7
+multiprocess,False
+shift_epoch,False
+fast_fit,False
+use_host_density_prior,False
+host_ld_law_tess,quad
+error_flux_tess,sample
+baseline_flux_tess,none

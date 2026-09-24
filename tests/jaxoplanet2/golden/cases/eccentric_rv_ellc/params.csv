@@ -1,0 +1,13 @@
+#name,value,fit,bounds,label,unit,truth
+b_rr,0.1,1,uniform 0 0.3,b_rr,,
+b_rsuma,0.12,1,uniform 0 0.5,b_rsuma,,
+b_cosi,0.05,1,uniform 0 1,b_cosi,,
+b_epoch,2459000.3,1,uniform 2458999.3 2459001.3,b_epoch,,
+b_period,4.0,1,uniform 2 6,b_period,,
+b_f_c,0.3,0,,b_f_c,,
+b_f_s,0.4,0,,b_f_s,,
+b_K,0.05,1,uniform 0 1,b_K,,
+ln_jitter_rv_harps,-8.0,1,uniform -15 0,ln_jitter_rv_harps,,
+host_ldc_q1_tess,0.4,1,uniform 0 1,host_ldc_q1_tess,,
+host_ldc_q2_tess,0.3,1,uniform 0 1,host_ldc_q2_tess,,
+ln_err_flux_tess,-7.0,1,uniform -15 0,ln_err_flux_tess,,
