@@ -12,6 +12,7 @@ result together with the allesfitter version that produced it.
 
 from __future__ import annotations
 
+import shutil
 import sys
 import warnings
 from pathlib import Path
@@ -40,6 +41,7 @@ def main() -> None:
     warnings.simplefilter("ignore")
     for case_dir in sorted((HERE / "cases").iterdir()):
         models = reference_models(case_dir)
+        shutil.rmtree(case_dir / "results", ignore_errors=True)  # allesfitter's logs
         np.savez(HERE / f"{case_dir.name}.npz", **models)
         insts = ", ".join(k for k in models if k != "allesfitter_version")
         print(f"{case_dir.name}: {insts}", file=sys.stderr)

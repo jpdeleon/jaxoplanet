@@ -81,5 +81,33 @@ def validate(
     typer.echo("OK")
 
 
+@app.command()
+def show_initial_guess(
+    dir_path: str = typer.Argument(..., help="path to the fit directory"),
+    quiet: bool = typer.Option(False, "--quiet", "-q"),
+    no_plot: bool = typer.Option(False, "--no-plot", help="skip generating figures"),
+    file_extension: str = typer.Option(
+        ".pdf", "--file-extension", "-e", help="figure format: pdf, png, jpg, svg, webp"
+    ),
+    allow_unsupported: bool = typer.Option(False, "--allow-unsupported"),
+) -> None:
+    """Plot the data with the model at the params.csv values."""
+    from jaxoplanet2.plots.initial_guess import show_initial_guess as _show
+
+    try:
+        paths = _show(
+            dir_path,
+            do_plot=not no_plot,
+            file_extension=file_extension,
+            allow_unsupported=allow_unsupported,
+        )
+    except ValueError as e:
+        typer.echo(f"Error: {e}")
+        raise typer.Exit(1) from e
+    if not quiet:
+        for path in paths:
+            typer.echo(f"wrote {path}")
+
+
 def main() -> None:
     app()
