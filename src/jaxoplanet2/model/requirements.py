@@ -29,6 +29,15 @@ BASELINE_PARAMS: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
         ("baseline_gp_real_lna", "baseline_gp_real_lnc"),
         ("baseline_gp_offset",),
     ),
+    "sample_gp_complex": (
+        (
+            "baseline_gp_complex_lna",
+            "baseline_gp_complex_lnb",
+            "baseline_gp_complex_lnc",
+            "baseline_gp_complex_lnd",
+        ),
+        ("baseline_gp_offset",),
+    ),
 }
 
 # ellc/allesfitter parameters for physics jaxoplanet2 does not model. They are

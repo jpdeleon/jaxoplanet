@@ -9,6 +9,8 @@ quasiseparable module, which scales linearly with the number of points:
 - ``sample_GP_SHO``: log_S0, log_Q, log_omega0 -> ``SHO(omega0, Q)`` with
   ``sigma**2 = S0 * omega0 * Q`` (celerite's power normalisation).
 - ``sample_GP_real``: log_a, log_c -> ``a exp(-c tau)`` = ``Exp(1/c, sqrt(a))``.
+- ``sample_GP_complex``: log_a..log_d -> ``Celerite(a, b, c, d)``, identical to
+  celerite's ComplexTerm ``exp(-c tau) [a cos(d tau) + b sin(d tau)]``.
 
 An optional ``baseline_gp_offset_<kind>_<inst>`` is the GP mean.
 """
@@ -53,6 +55,10 @@ def gp_kernel(values: Values, baseline: str, suffix: str) -> quasisep.Quasisep:
     if kind == "sample_gp_real":
         a, c = jnp.exp(p("real_lna")), jnp.exp(p("real_lnc"))
         return quasisep.Exp(scale=1.0 / c, sigma=jnp.sqrt(a))
+    if kind == "sample_gp_complex":
+        # celerite's ComplexTerm: exp(-c tau) [a cos(d tau) + b sin(d tau)]
+        a, b, c, d = (jnp.exp(p(f"complex_ln{x}")) for x in "abcd")
+        return quasisep.Celerite(a=a, b=b, c=c, d=d)
     raise ValueError(f"'{baseline}' is not a GP baseline")
 
 

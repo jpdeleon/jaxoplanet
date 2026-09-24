@@ -25,7 +25,7 @@ from scipy import optimize as scipy_optimize
 from jaxoplanet2._jax import configure_jax
 from jaxoplanet2.fitdir import FitDirectory, load_fit_directory
 from jaxoplanet2.io.params import PARAMS_FILE
-from jaxoplanet2.io.priors import Normal, Prior, TruncNormal, Uniform
+from jaxoplanet2.io.priors import LogUniform, Normal, Prior, TruncNormal, Uniform
 from jaxoplanet2.io.writers import backup_params, write_param_values
 from jaxoplanet2.model.numpyro_model import build_model
 from jaxoplanet2.validate import validate
@@ -80,7 +80,7 @@ def _curvature_scale(logp, theta0: np.ndarray, priors: list[Prior]) -> np.ndarra
 
 
 def _prior_scale(prior: Prior) -> float:
-    if isinstance(prior, Uniform):
+    if isinstance(prior, (Uniform, LogUniform)):
         return (prior.upper - prior.lower) / 10.0
     if isinstance(prior, TruncNormal):
         return min(prior.sd, (prior.upper - prior.lower) / 10.0)

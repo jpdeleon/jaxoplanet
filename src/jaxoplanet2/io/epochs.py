@@ -13,7 +13,7 @@ import numpy as np
 
 from jaxoplanet2.io.data import Dataset
 from jaxoplanet2.io.params import Param, ParamTable
-from jaxoplanet2.io.priors import Normal, Prior, TruncNormal, Uniform
+from jaxoplanet2.io.priors import LogUniform, Normal, Prior, TruncNormal, Uniform
 from jaxoplanet2.io.settings import Settings
 
 
@@ -61,6 +61,8 @@ def shift_prior(
 ) -> Prior:
     """The epoch prior after moving the epoch by ``n`` periods."""
     e, p = epoch_prior, period_prior
+    if isinstance(e, LogUniform):
+        raise EpochShiftError("shift_epoch cannot move a loguniform epoch prior")
     if p is None:  # fixed period: an exact translation
         return _translate(e, n * period)
     if isinstance(e, Uniform) and isinstance(p, Uniform):

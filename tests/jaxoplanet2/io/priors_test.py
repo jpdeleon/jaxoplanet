@@ -82,3 +82,22 @@ def test_to_distribution_trunc_normal_respects_bounds():
 def test_describe_round_trips():
     for prior in (Uniform(0, 0.1), Normal(1, 2), TruncNormal(0, 1, 0.43, 0.07)):
         assert parse_bounds(prior.describe()) == prior
+
+
+def test_loguniform_prior():
+    from jaxoplanet2.io.priors import LogUniform
+
+    prior = parse_bounds("loguniform 1e-4 1e-1")
+    assert prior == LogUniform(1e-4, 1e-1)
+    assert parse_bounds(prior.describe()) == prior
+    d = to_distribution(prior)
+    # density 1 / (x ln(hi/lo))
+    np.testing.assert_allclose(
+        d.log_prob(1e-2), -np.log(1e-2 * np.log(1e-1 / 1e-4)), rtol=1e-6
+    )
+
+
+@pytest.mark.parametrize("text", ["loguniform 0 1", "loguniform -1 1", "loguniform 2 1"])
+def test_loguniform_errors(text):
+    with pytest.raises(PriorError):
+        parse_bounds(text)

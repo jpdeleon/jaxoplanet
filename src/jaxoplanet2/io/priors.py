@@ -55,12 +55,28 @@ class TruncNormal:
         return f"trunc_normal {self.lower!r} {self.upper!r} {self.mean!r} {self.sd!r}"
 
 
-Prior = Uniform | Normal | TruncNormal
+@dataclass(frozen=True)
+class LogUniform:
+    """Uniform in ln(x); a jaxoplanet2 extension (allesfitter has no such prior)."""
+
+    lower: float
+    upper: float
+
+    @property
+    def support(self) -> tuple[float, float]:
+        return (self.lower, self.upper)
+
+    def describe(self) -> str:
+        return f"loguniform {self.lower!r} {self.upper!r}"
+
+
+Prior = Uniform | Normal | TruncNormal | LogUniform
 
 _ARITY = {
     "uniform": (Uniform, 2),
     "normal": (Normal, 2),
     "trunc_normal": (TruncNormal, 4),
+    "loguniform": (LogUniform, 2),
 }
 
 
@@ -71,7 +87,8 @@ def parse_bounds(text: str) -> Prior:
     kind = tokens[0].lower()
     if kind not in _ARITY:
         raise PriorError(
-            f"unknown prior '{tokens[0]}'; use uniform, normal or trunc_normal"
+            f"unknown prior '{tokens[0]}'; use uniform, normal, trunc_normal "
+            "or loguniform"
         )
     cls, arity = _ARITY[kind]
     if len(tokens) - 1 < arity:
@@ -97,7 +114,12 @@ def parse_bounds(text: str) -> Prior:
 
 
 def _validate(prior: Prior, text: str) -> None:
-    if isinstance(prior, (Uniform, TruncNormal)) and not prior.lower < prior.upper:
+    if isinstance(prior, LogUniform) and not prior.lower > 0:
+        raise PriorError(f"'{text}': loguniform bounds must be positive")
+    if (
+        isinstance(prior, (Uniform, TruncNormal, LogUniform))
+        and not prior.lower < prior.upper
+    ):
         raise PriorError(f"'{text}': lower bound must be below upper bound")
     if isinstance(prior, (Normal, TruncNormal)) and not prior.sd > 0:
         raise PriorError(f"'{text}': standard deviation must be positive")
@@ -108,6 +130,8 @@ def to_distribution(prior: Prior) -> dist.Distribution:
         return dist.Uniform(prior.lower, prior.upper)
     if isinstance(prior, Normal):
         return dist.Normal(prior.mean, prior.sd)
+    if isinstance(prior, LogUniform):
+        return dist.LogUniform(prior.lower, prior.upper)
     return dist.TruncatedNormal(
         loc=prior.mean, scale=prior.sd, low=prior.lower, high=prior.upper
     )
