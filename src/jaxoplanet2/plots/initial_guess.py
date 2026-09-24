@@ -81,7 +81,9 @@ def _companions(settings: Settings, inst: str) -> tuple[str, ...]:
     return settings.companions_rv
 
 
-def plot_instrument(fit: FitDirectory, inst: str) -> plt.Figure:
+def plot_instrument(
+    fit: FitDirectory, inst: str, title: str = "initial guess"
+) -> plt.Figure:
     values = fit.params.values()
     data = fit.data[inst]
     settings = fit.settings
@@ -98,7 +100,7 @@ def plot_instrument(fit: FitDirectory, inst: str) -> plt.Figure:
     ax_res = fig.add_subplot(grid[1, :], sharex=ax_data)
     ax_data.errorbar(data.time, data.y, data.yerr, fmt=".", color="0.6", ms=2, zorder=0)
     ax_data.plot(data.time, model, "C0-", lw=1)
-    ax_data.set(ylabel=ylabel, title=f"{inst}: initial guess")
+    ax_data.set(ylabel=ylabel, title=f"{inst}: {title}")
     ax_res.errorbar(data.time, data.y - model, data.yerr, fmt=".", ms=2)
     ax_res.axhline(0.0, color="C0")
     ax_res.set(xlabel="time [BJD]", ylabel="residuals")

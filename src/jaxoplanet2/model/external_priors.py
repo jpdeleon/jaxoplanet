@@ -39,6 +39,8 @@ class Star:
     radius_err: tuple[float, float]
     mass: float  # M_sun
     mass_err: tuple[float, float]
+    teff: float | None = None  # K
+    teff_err: tuple[float, float] = (0.0, 0.0)
 
 
 @dataclass(frozen=True)
@@ -63,12 +65,20 @@ def load_star(fit_dir: str | Path) -> Star | None:
             radius_err=(float(row["R_star_lerr"]), float(row["R_star_uerr"])),
             mass=float(row["M_star"]),
             mass_err=(float(row["M_star_lerr"]), float(row["M_star_uerr"])),
+            **_teff(row),
         )
     except (KeyError, ValueError) as e:
         raise ValueError(f"{PARAMS_STAR_FILE}: cannot read {e}") from e
 
 
-def _split_normal(median: float, err: tuple[float, float], rng, size: int):
+def _teff(row: dict[str, str]) -> dict:
+    if not row.get("Teff_star"):
+        return {}
+    errs = (row.get("Teff_star_lerr") or "0", row.get("Teff_star_uerr") or "0")
+    return {"teff": float(row["Teff_star"]), "teff_err": tuple(map(float, errs))}
+
+
+def split_normal(median: float, err: tuple[float, float], rng, size: int):
     # allesfitter fits a skew normal; for symmetric errors (69 of 71 local fits)
     # that is exactly this normal, and a split normal is close otherwise
     lo, hi = abs(err[0]), abs(err[1])
@@ -79,22 +89,26 @@ def _split_normal(median: float, err: tuple[float, float], rng, size: int):
 def density_prior(star: Star, seed: int = 0) -> DensityPrior:
     """allesfitter's host-density prior: MC over R* and M*, normal in rho."""
     rng = np.random.default_rng(seed)
-    radius = _split_normal(star.radius, star.radius_err, rng, DENSITY_SAMPLES)
-    mass = _split_normal(star.mass, star.mass_err, rng, DENSITY_SAMPLES)
+    radius = split_normal(star.radius, star.radius_err, rng, DENSITY_SAMPLES)
+    mass = split_normal(star.mass, star.mass_err, rng, DENSITY_SAMPLES)
     rho = mass * M_SUN_G / (4.0 / 3.0 * math.pi * (radius * R_SUN_CM) ** 3)
     p16, p50, p84 = np.percentile(rho, [16, 50, 84])
     return DensityPrior(mean=float(p50), sd=float(max(p50 - p16, p84 - p50)))
 
 
 def companion_mass_g(K_kms, period_d, inclination, ecc, host_mass_msun) -> jax.Array:
-    """Companion mass from the RV semi-amplitude (exact mass function)."""
-    f = (period_d * SECONDS_PER_DAY) * (K_kms * KM_TO_CM) ** 3 / (2 * math.pi * G_CGS)
-    f = f * (1 - ecc**2) ** 1.5
-    m_host = host_mass_msun * M_SUN_G
+    """Companion mass from the RV semi-amplitude (exact mass function).
+
+    Solved in solar masses: in grams (M + m)^2 ~ 1e66 overflows float32.
+    """
+    f_grams = (
+        (period_d * SECONDS_PER_DAY) * (K_kms * KM_TO_CM) ** 3 / (2 * math.pi * G_CGS)
+    )
+    f = f_grams * (1 - ecc**2) ** 1.5 / M_SUN_G
     m = jnp.zeros_like(jnp.asarray(K_kms, dtype=float))
     for _ in range(MASS_ITERATIONS):  # m^3 sin^3 i = f (M + m)^2
-        m = jnp.cbrt(f * (m_host + m) ** 2) / jnp.sin(inclination)
-    return m
+        m = jnp.cbrt(f * (host_mass_msun + m) ** 2) / jnp.sin(inclination)
+    return m * M_SUN_G
 
 
 def implied_host_density(
