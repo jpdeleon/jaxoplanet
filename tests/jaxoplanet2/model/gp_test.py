@@ -83,3 +83,17 @@ def test_log_probability_is_differentiable():
         return gp.log_probability(np.zeros(400))
 
     assert np.isfinite(jax.grad(f)(np.log(1e-6)))
+
+
+def test_complex_term_matches_celerite():
+    # celerite.terms.ComplexTerm(log a=ln2, log b=ln0.3, log c=ln1.5, log d=ln4)
+    # evaluated at tau = 0, 0.2, 0.7 (computed with celerite 0.4.2)
+    k = gp_kernel(
+        {f"baseline_gp_complex_ln{x}_flux_tess": np.log(v)
+         for x, v in zip("abcd", (2.0, 0.3, 1.5, 4.0), strict=True)},
+        "sample_GP_complex", "flux_tess",
+    )  # fmt: skip
+    tau = np.array([0.0, 0.2, 0.7])
+    np.testing.assert_allclose(
+        k(tau, np.zeros(1))[:, 0], [2.0, 1.19169519, -0.62427083], rtol=1e-7
+    )

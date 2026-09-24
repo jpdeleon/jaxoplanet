@@ -1,6 +1,6 @@
 #name,value
 companions_phot,b
-inst_phot,tess kepler ngts
+inst_phot,tess kepler ngts wasp
 flux_model,batman
 multiprocess,False
 shift_epoch,False
@@ -15,3 +15,6 @@ baseline_flux_kepler,sample_GP_SHO
 host_ld_law_ngts,quad
 error_flux_ngts,sample
 baseline_flux_ngts,sample_GP_real
+host_ld_law_wasp,quad
+error_flux_wasp,sample
+baseline_flux_wasp,sample_GP_complex

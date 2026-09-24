@@ -31,6 +31,7 @@ BASELINES = frozenset(
         "sample_gp_matern32",
         "sample_gp_sho",
         "sample_gp_real",
+        "sample_gp_complex",
     }
 )
 BOOLS = frozenset({"true", "false", "1", "0"})

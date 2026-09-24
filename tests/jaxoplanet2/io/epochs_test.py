@@ -94,3 +94,10 @@ def test_shift_epochs_updates_value_and_prior_and_reports_shifts():
         10.0 + n * 3.0, math.hypot(0.001, n * 1e-4)
     )
     assert params["b_epoch"].value == 10.0  # the input table is untouched
+
+
+def test_loguniform_epoch_prior_cannot_be_shifted():
+    from jaxoplanet2.io.priors import LogUniform
+
+    with pytest.raises(EpochShiftError, match="loguniform"):
+        shift_prior(LogUniform(1.0, 2.0), Uniform(2.9, 3.1), 2, 3.0)
