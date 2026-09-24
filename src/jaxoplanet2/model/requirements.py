@@ -120,8 +120,10 @@ def check_params(settings: Settings, params: ParamTable) -> ParamCheck:
     for p in params:
         if p.name in known:
             continue
-        if TTV_PARAM.fullmatch(p.name) and not settings.fit_ttvs:
-            ignored.append(p.name)
+        if TTV_PARAM.fullmatch(p.name):
+            # with fit_ttvs, load_fit_directory already matched them to transits
+            if not settings.fit_ttvs:
+                ignored.append(p.name)
             continue
         verdict = _neutral_extra(p.name, p.value, p.fit)
         (ignored if verdict else unsupported).append(p.name)

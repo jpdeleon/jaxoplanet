@@ -48,11 +48,13 @@ def _only(settings: Settings, companion: str | None) -> Settings:
     )
 
 
-def companion_signal(values, settings, inst, time, companion=None) -> jax.Array:
+def companion_signal(
+    values, settings, inst, time, *, companion=None, ttv=None
+) -> jax.Array:
     """Model signal (flux - 1, or RV) of one companion, or of all if None."""
     s = _only(settings, companion)
     if inst in settings.inst_phot:
-        return flux_model(values, s, inst, time) - 1.0
+        return flux_model(values, s, inst, time, ttv) - 1.0
     return rv_model(values, s, inst, time)
 
 
@@ -87,9 +89,9 @@ def plot_instrument(
     values = fit.params.values()
     data = fit.data[inst]
     settings = fit.settings
-    total = np.asarray(companion_signal(values, settings, inst, data.time))
+    total = np.asarray(companion_signal(values, settings, inst, data.time, ttv=fit.ttv))
     level = 1.0 if data.kind == "flux" else 0.0
-    instrumental = np.asarray(mean_components(values, settings, data)[1])
+    instrumental = np.asarray(mean_components(values, settings, data, fit.ttv)[1])
     model = level + total + instrumental
     ylabel = "relative flux" if data.kind == "flux" else "RV"
     companions = _companions(settings, inst) or (None,)
@@ -120,11 +122,16 @@ def _plot_fold(ax, fit, inst, c, *, remove, level, ylabel) -> None:
     """Phase-fold companion ``c``; ``remove`` is everything but its own signal."""
     values, settings, data = fit.params.values(), fit.settings, fit.data[inst]
     epoch, period = float(values[f"{c}_epoch"]), float(values[f"{c}_period"])
-    own = np.asarray(companion_signal(values, settings, inst, data.time, c))
+    own = np.asarray(
+        companion_signal(values, settings, inst, data.time, companion=c, ttv=fit.ttv)
+    )
     y = data.y - (remove - own)  # baseline and the other companions
     window = _fold_window(values, settings, inst, c)
     scale = HOURS if data.kind == "flux" else 1.0 / period
-    dt = phase_offset(data.time, epoch, period)
+    time = data.time
+    if c in fit.ttv and data.kind == "flux":  # align each transit on its own TTV
+        time = time - np.asarray(fit.ttv[c].shift(values, time)[0])
+    dt = phase_offset(time, epoch, period)
     near = np.abs(dt) <= window
     ax.errorbar(dt[near] * scale, y[near], data.yerr[near], fmt=".", color="0.6", ms=2)
     if data.kind == "flux":
@@ -132,7 +139,9 @@ def _plot_fold(ax, fit, inst, c, *, remove, level, ylabel) -> None:
         xb, yb = binned(dt[near], y[near], edges)
         ax.plot(xb * scale, yb, "o", color="C1", ms=4, zorder=3)
     fine = np.linspace(-window, window, FOLD_POINTS)
-    model = np.asarray(companion_signal(values, settings, inst, epoch + fine, c))
+    model = np.asarray(
+        companion_signal(values, settings, inst, epoch + fine, companion=c)
+    )
     ax.plot(fine * scale, level + model, "C0-")
     xlabel = "hours from mid-transit" if data.kind == "flux" else "phase"
     ax.set(xlabel=xlabel, ylabel=ylabel, title=f"companion {c}")

@@ -15,6 +15,7 @@ from jaxoplanet2.model.external_priors import (
     density_prior,
     load_star,
 )
+from jaxoplanet2.model.ttv import TtvWindows, ttv_windows
 
 RESULTS_DIR = "results"
 
@@ -29,6 +30,7 @@ class FitDirectory:
     density_prior: DensityPrior | None = None
     # periods each epoch was moved by shift_epoch (allesfitter's change_epoch)
     epoch_shifts: Mapping[str, int] = field(default_factory=dict)
+    ttv: Mapping[str, TtvWindows] = field(default_factory=dict)
 
     @property
     def results(self) -> Path:
@@ -49,6 +51,7 @@ def load_fit_directory(
         params, shifts = shift_epochs(settings, params, data)
     star = load_star(path)
     prior = density_prior(star) if star and settings.use_host_density_prior else None
+    ttv = MappingProxyType(ttv_windows(settings, params, data))
     return FitDirectory(
-        path, settings, params, data, star, prior, MappingProxyType(shifts)
+        path, settings, params, data, star, prior, MappingProxyType(shifts), ttv
     )
