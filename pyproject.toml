@@ -1,9 +1,12 @@
 [project]
-name = "jaxoplanet"
-description = "Probabilistic models for exoplanet inference in JAX"
-authors = [{ name = "Dan Foreman-Mackey", email = "foreman.mackey@gmail.com" }]
+name = "jaxoplanet2"
+description = "allesfitter-style transit and RV fitting on a jaxoplanet hard fork"
+authors = [
+    { name = "Dan Foreman-Mackey", email = "foreman.mackey@gmail.com" },
+    { name = "Jerome de Leon", email = "jpdeleon.bsap@gmail.com" },
+]
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 license = { text = "MIT License" }
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -21,9 +24,10 @@ dependencies = ["jax",
                 ]
 
 [project.urls]
-"Homepage" = "https://jax.exoplanet.codes"
-"Source" = "https://github.com/exoplanet-dev/jaxoplanet"
-"Bug Tracker" = "https://github.com/exoplanet-dev/jaxoplanet/issues"
+"Homepage" = "https://github.com/jpdeleon/jaxoplanet2"
+"Source" = "https://github.com/jpdeleon/jaxoplanet2"
+"Bug Tracker" = "https://github.com/jpdeleon/jaxoplanet2/issues"
+"Upstream" = "https://github.com/exoplanet-dev/jaxoplanet"
 
 [project.optional-dependencies]
 dev = [
@@ -60,6 +64,9 @@ build-backend = "hatchling.build"
 
 [tool.hatch.version]
 source = "vcs"
+# jaxoplanet2 releases are tagged jaxoplanet2-vX.Y.Z so they never mix with the
+# upstream vX.Y.Z tags inherited by this fork.
+raw-options = { tag_regex = "^jaxoplanet2-v(?P<version>.*)$", git_describe_command = "git describe --dirty --tags --long --match jaxoplanet2-v*" }
 
 [tool.hatch.build.hooks.vcs]
 version-file = "src/jaxoplanet/jaxoplanet_version.py"
