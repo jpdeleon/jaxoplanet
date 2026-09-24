@@ -29,7 +29,9 @@ def white_noise_sigma(values: Values, settings: Settings, data: Dataset) -> jax.
     del settings  # only 'sample' errors exist; kept for a uniform model API
     if data.kind == "flux":
         scale = jnp.exp(_require(values, f"ln_err_flux_{data.inst}"))
-        return data.yerr / data.yerr_mean * scale
+        # normalised by the mean error of the data being fitted, i.e. after
+        # fast_fit windowing (verified against allesfitter's calculate_yerr_w)
+        return data.yerr / jnp.mean(data.yerr) * scale
     jitter = jnp.exp(_require(values, f"ln_jitter_rv_{data.inst}"))
     return jnp.sqrt(data.yerr**2 + jitter**2)
 

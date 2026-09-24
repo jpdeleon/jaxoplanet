@@ -14,9 +14,9 @@ SETTINGS = parse_settings_text(
 )
 
 
-def flux_data(yerr, yerr_mean=None):
+def flux_data(yerr):
     n = len(yerr)
-    return Dataset("tess", "flux", np.arange(n), np.ones(n), yerr, yerr_mean)
+    return Dataset("tess", "flux", np.arange(n), np.ones(n), yerr)
 
 
 def rv_data(yerr):
@@ -31,10 +31,11 @@ def test_flux_sigma_rescales_file_errors_like_allesfitter():
     np.testing.assert_allclose(sigma, [0.001, 0.003])
 
 
-def test_flux_sigma_uses_the_full_file_mean_after_fast_fit():
-    d = flux_data(np.array([1.0, 1.0]), yerr_mean=2.0)
+def test_flux_sigma_is_normalised_by_the_fitted_points_only():
+    # allesfitter recomputes err_scales after fast_fit trims the data
+    d = flux_data(np.array([1.0, 1.0, 3.0, 3.0])).select(np.array([1, 1, 0, 0], bool))
     sigma = white_noise_sigma({"ln_err_flux_tess": 0.0}, SETTINGS, d)
-    np.testing.assert_allclose(sigma, [0.5, 0.5])
+    np.testing.assert_allclose(sigma, [1.0, 1.0])
 
 
 def test_rv_sigma_adds_jitter_in_quadrature():

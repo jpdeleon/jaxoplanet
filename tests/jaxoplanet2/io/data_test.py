@@ -95,12 +95,6 @@ def test_select_returns_new_dataset():
     assert len(d) == 4
 
 
-def test_select_keeps_the_full_file_mean_error():
-    d = Dataset("tess", "flux", np.arange(4.0), np.ones(4), np.array([1, 1, 3, 3.0]))
-    assert d.yerr_mean == 2.0
-    assert d.select(np.array([True, True, False, False])).yerr_mean == 2.0
-
-
 def test_fast_fit_mask_keeps_windows_around_each_transit():
     time = np.linspace(0, 10, 1001)
     mask = fast_fit_mask(time, [(1.0, 3.0)], width=0.4)
