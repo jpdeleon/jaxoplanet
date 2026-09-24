@@ -41,3 +41,18 @@ def docs(session):
             ".",
             "_build/dirhtml",
         )
+
+
+@nox.session(python=["3.11", "3.13"])
+def jaxoplanet2(session):
+    """jaxoplanet2 fitter tests with the 80% coverage gate."""
+    session.install(".[test]", "pytest-cov")
+    session.run(
+        "pytest",
+        "tests/jaxoplanet2",
+        "--cov=jaxoplanet2",
+        "--cov-report=term-missing",
+        "--cov-fail-under=80",
+        *session.posargs,
+        env={"JAX_ENABLE_X64": "1", "MPLBACKEND": "Agg"},
+    )
