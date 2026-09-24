@@ -160,5 +160,34 @@ def optimize(  # noqa: PLR0917 (typer maps each option to a parameter)
         _show(dir_path, allow_unsupported=allow_unsupported)
 
 
+@app.command()
+def mcmc_fit(
+    dir_path: str = typer.Argument(..., help="path to the fit directory"),
+    no_progress: bool = typer.Option(False, "--no-progress", help="hide progress bars"),
+    quiet: bool = typer.Option(False, "--quiet", "-q"),
+    allow_unsupported: bool = typer.Option(False, "--allow-unsupported"),
+) -> None:
+    """Sample the posterior with NUTS (numpyro)."""
+    from jaxoplanet2.infer.mcmc import (
+        McmcError,
+        enable_host_devices,
+        mcmc_fit as _mcmc_fit,
+    )
+
+    enable_host_devices()  # before anything touches the JAX backend
+    try:
+        _mcmc_fit(
+            dir_path,
+            quiet=quiet,
+            progress_bar=not no_progress,
+            allow_unsupported=allow_unsupported,
+        )
+    except McmcError as e:
+        typer.echo(f"Error: {e}")
+        raise typer.Exit(1) from e
+    if not quiet:
+        typer.echo(f"Run 'jaxoplanet mcmc-output {dir_path}' for tables and plots.")
+
+
 def main() -> None:
     app()

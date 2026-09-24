@@ -70,7 +70,7 @@ RULES: tuple[Rule, ...] = (
     _rule(r"inst_for_(?P<comp>.+)_epoch", group="comp"),
     _rule(r"mcmc_(nwalkers|total_steps|burn_steps|thin_by)"),
     _rule(r"ns_.+"),
-    _rule(r"jx_x64", allowed=BOOLS),
+    _rule(r"jx_(x64|nuts_dense_mass)", allowed=BOOLS),
     _rule(r"jx_(seed|num_chains|nuts_target_accept|nuts_max_tree_depth|optimizer)"),
     _rule(r"host_ld_law_(?P<inst>.+)", allowed=EMPTY | {"quad", "lin"}, group="inst"),
     _rule(r"host_ld_space_(?P<inst>.+)", allowed=frozenset({"q", "u"}), group="inst"),
