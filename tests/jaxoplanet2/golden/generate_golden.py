@@ -35,17 +35,25 @@ def reference_models(case_dir: Path) -> dict[str, np.ndarray]:
             model = computer.calculate_model(params, inst, key)
             out[inst] = np.asarray(model)
             out[f"{inst}_loglike"] = np.asarray(_loglike(basement, params, inst, key))
+            out[f"{inst}_baseline"] = np.asarray(
+                computer.calculate_baseline(params, inst, key, model=model)
+            )
     return out
 
 
 def _loglike(basement, params, inst, key):
-    """allesfitter's white-noise log-likelihood of one instrument."""
+    """allesfitter's log-likelihood of one instrument (white noise or GP)."""
     from allesfitter import computer
 
     model = computer.calculate_model(params, inst, key)
     yerr_w = computer.calculate_yerr_w(params, inst, key)
+    residuals = basement.data[inst][key] - model
+    if "GP" in basement.settings[f"baseline_{key}_{inst}"]:
+        gp = computer.baseline_get_gp(params, inst, key)
+        gp.compute(basement.data[inst]["time"], yerr=yerr_w)
+        return gp.log_likelihood(residuals)
     baseline = computer.calculate_baseline(params, inst, key, model=model, yerr_w=yerr_w)
-    residuals = basement.data[inst][key] - model - baseline
+    residuals = residuals - baseline
     return -0.5 * np.sum(residuals**2 / yerr_w**2 + np.log(2 * np.pi * yerr_w**2))
 
 

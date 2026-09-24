@@ -1,0 +1,17 @@
+#name,value
+companions_phot,b
+inst_phot,tess kepler ngts
+flux_model,batman
+multiprocess,False
+shift_epoch,False
+fast_fit,False
+use_host_density_prior,False
+host_ld_law_tess,quad
+error_flux_tess,sample
+baseline_flux_tess,sample_GP_Matern32
+host_ld_law_kepler,quad
+error_flux_kepler,sample
+baseline_flux_kepler,sample_GP_SHO
+host_ld_law_ngts,quad
+error_flux_ngts,sample
+baseline_flux_ngts,sample_GP_real
