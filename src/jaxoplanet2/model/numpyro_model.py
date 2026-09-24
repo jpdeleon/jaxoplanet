@@ -19,6 +19,7 @@ from jaxoplanet2.io.data import Dataset
 from jaxoplanet2.io.priors import to_distribution
 from jaxoplanet2.io.settings import Settings
 from jaxoplanet2.model.baseline import deterministic_baseline, is_gp
+from jaxoplanet2.model.external_priors import external_log_prior
 from jaxoplanet2.model.gp import residual_process
 from jaxoplanet2.model.noise import white_noise_sigma
 from jaxoplanet2.model.photometry import flux_model
@@ -26,6 +27,7 @@ from jaxoplanet2.model.rv import rv_model
 
 Values = Mapping[str, jax.Array | float]
 OBS_PREFIX = "obs_"
+EXTERNAL_PRIORS = "external_priors"
 
 
 def signal(values: Values, settings: Settings, data: Dataset) -> jax.Array:
@@ -81,6 +83,10 @@ def build_model(fit: FitDirectory) -> Callable[[], None]:
         for inst, data in fit.data.items():
             distribution, observed = likelihood_site(values, fit.settings, data)
             numpyro.sample(OBS_PREFIX + inst, distribution, obs=observed)
+        numpyro.factor(
+            EXTERNAL_PRIORS,
+            external_log_prior(values, fit.settings, fit.density_prior, fit.star),
+        )
 
     return model
 
@@ -109,8 +115,8 @@ def log_prob_parts(fit: FitDirectory, params: Mapping[str, float]) -> LogProb:
         if site["type"] != "sample":
             continue
         lp = float(jnp.sum(site["fn"].log_prob(site["value"])))
-        if site["is_observed"]:
+        if name.startswith(OBS_PREFIX):
             per_inst[name.removeprefix(OBS_PREFIX)] = lp
-        else:
+        else:  # parameter priors and the external-prior factor
             prior += lp
     return LogProb(prior, sum(per_inst.values()), per_inst)
