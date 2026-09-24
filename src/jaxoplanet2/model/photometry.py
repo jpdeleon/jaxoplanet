@@ -17,6 +17,7 @@ from jaxoplanet.light_curves import limb_dark_light_curve
 from jaxoplanet2.io.settings import Settings
 from jaxoplanet2.model.exposure import integrate_exposure
 from jaxoplanet2.model.parameterization import companion_orbit
+from jaxoplanet2.model.ttv import TtvWindows
 
 Values = Mapping[str, jax.Array | float]
 
@@ -46,24 +47,31 @@ def ld_coefficients(values: Values, settings: Settings, inst: str) -> jax.Array:
     return jnp.stack([2.0 * sqrt_q1 * q2, sqrt_q1 * (1.0 - 2.0 * q2)])
 
 
-def _instantaneous_flux(values: Values, settings: Settings, inst: str, time):
+def flux_model(
+    values: Values,
+    settings: Settings,
+    inst: str,
+    time: np.ndarray | jax.Array,
+    ttv: Mapping[str, TtvWindows] | None = None,
+) -> jax.Array:
+    """Normalised model flux of instrument ``inst`` at ``time``.
+
+    ``ttv`` (from :func:`jaxoplanet2.model.ttv.ttv_windows`) shifts each observed
+    transit of those companions by its own TTV. Companions' depths add linearly,
+    so each is integrated over the exposure on its own (shifted) time axis.
+    """
     u = ld_coefficients(values, settings, inst)
+    times = np.asarray(time, dtype=float)
     depth = 0.0
     for c in settings.companions_phot:
-        orbit = companion_orbit(values, c)
-        depth = depth - limb_dark_light_curve(orbit, u)(time)
-    return 1.0 - depth
-
-
-def flux_model(
-    values: Values, settings: Settings, inst: str, time: np.ndarray | jax.Array
-) -> jax.Array:
-    """Normalised model flux of instrument ``inst`` at ``time``."""
-    flux = integrate_exposure(
-        lambda t: _instantaneous_flux(values, settings, inst, t),
-        time,
-        settings.t_exp[inst],
-        settings.t_exp_n_int[inst],
-    )
+        light_curve = limb_dark_light_curve(companion_orbit(values, c), u)
+        t_c, inside = jnp.asarray(times), 1.0
+        if ttv and c in ttv:
+            offset, inside = ttv[c].shift(values, times)
+            t_c = t_c - offset
+        dip = integrate_exposure(
+            light_curve, t_c, settings.t_exp[inst], settings.t_exp_n_int[inst]
+        )
+        depth = depth - dip * inside
     dil = values.get(f"dil_{inst}", 0.0)
-    return 1.0 + (flux - 1.0) * (1.0 - dil)
+    return 1.0 - depth * (1.0 - dil)

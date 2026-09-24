@@ -30,21 +30,22 @@ OBS_PREFIX = "obs_"
 EXTERNAL_PRIORS = "external_priors"
 
 
-def signal(values: Values, settings: Settings, data: Dataset) -> jax.Array:
+def signal(values: Values, settings: Settings, data: Dataset, ttv=None) -> jax.Array:
     """Astrophysical model at the data's time stamps (flux or RV)."""
-    model = flux_model if data.kind == "flux" else rv_model
-    return model(values, settings, data.inst, data.time)
+    if data.kind == "flux":
+        return flux_model(values, settings, data.inst, data.time, ttv)
+    return rv_model(values, settings, data.inst, data.time)
 
 
 def mean_components(
-    values: Values, settings: Settings, data: Dataset
+    values: Values, settings: Settings, data: Dataset, ttv=None
 ) -> tuple[jax.Array, jax.Array, jax.Array]:
     """(astrophysical signal, baseline, white-noise sigma) at the data.
 
     For a GP baseline, the baseline is the GP's conditional mean given the
     residuals, which is what allesfitter plots and subtracts.
     """
-    mu = signal(values, settings, data)
+    mu = signal(values, settings, data, ttv)
     sigma = white_noise_sigma(values, settings, data)
     residual = data.y - mu
     if is_gp(settings.baseline[(data.kind, data.inst)]):
@@ -56,10 +57,10 @@ def mean_components(
 
 
 def likelihood_site(
-    values: Values, settings: Settings, data: Dataset
+    values: Values, settings: Settings, data: Dataset, ttv=None
 ) -> tuple[dist.Distribution, jax.Array]:
     """(distribution, observed value) of one instrument's likelihood."""
-    mu = signal(values, settings, data)
+    mu = signal(values, settings, data, ttv)
     sigma = white_noise_sigma(values, settings, data)
     residual = jnp.asarray(data.y) - mu
     if is_gp(settings.baseline[(data.kind, data.inst)]):
@@ -81,7 +82,7 @@ def build_model(fit: FitDirectory) -> Callable[[], None]:
     def model() -> None:
         values = sample_values(fit)
         for inst, data in fit.data.items():
-            distribution, observed = likelihood_site(values, fit.settings, data)
+            distribution, observed = likelihood_site(values, fit.settings, data, fit.ttv)
             numpyro.sample(OBS_PREFIX + inst, distribution, obs=observed)
         numpyro.factor(
             EXTERNAL_PRIORS,

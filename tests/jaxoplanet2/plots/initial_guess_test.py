@@ -48,8 +48,8 @@ def test_companion_signals_add_up_to_the_total():
     fit = load_fit_directory(GOLDEN / "two_planets_dilution_exposure")
     t = fit.data["tess"].time
     values = fit.params.values()
-    b = np.asarray(companion_signal(values, fit.settings, "tess", t, "b"))
-    c = np.asarray(companion_signal(values, fit.settings, "tess", t, "c"))
+    b = np.asarray(companion_signal(values, fit.settings, "tess", t, companion="b"))
+    c = np.asarray(companion_signal(values, fit.settings, "tess", t, companion="c"))
     total = np.asarray(companion_signal(values, fit.settings, "tess", t))
     assert b.min() < -1e-3 and c.min() < -1e-3
     np.testing.assert_allclose(total, b + c, atol=1e-12)
