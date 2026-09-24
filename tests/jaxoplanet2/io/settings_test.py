@@ -91,9 +91,19 @@ def test_defaults_match_allesfitter():
     assert s.use_host_density_prior is True
     assert s.baseline[("flux", "tess")] == "none"
     assert s.error[("flux", "tess")] == "sample"
-    assert s.ld_law["tess"] is None
+    assert s.ld_law["tess"] == "quad"
     assert s.inst_for_epoch["b"] == "all"
     assert (s.mcmc.nwalkers, s.mcmc.total_steps) == (100, 2000)
+
+
+def test_explicit_none_disables_limb_darkening():
+    s = parse("companions_phot,b\ninst_phot,tess\nhost_ld_law_tess,None\n")
+    assert s.ld_law["tess"] is None
+
+
+def test_empty_ld_law_means_quad_like_allesfitter2():
+    s = parse("companions_phot,b\ninst_phot,tess\nhost_ld_law_tess,\n")
+    assert s.ld_law["tess"] == "quad"
 
 
 def test_jx_settings_defaults_and_overrides():

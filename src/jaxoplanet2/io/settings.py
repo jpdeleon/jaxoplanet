@@ -14,6 +14,7 @@ T = TypeVar("T")
 
 # allesfitter's defaults for keys the user may leave out
 DEFAULT_FAST_FIT_WIDTH = 8.0 / 24.0
+DEFAULT_LD_LAW = "quad"
 DEFAULT_MCMC = {"nwalkers": 100, "total_steps": 2000, "burn_steps": 1000, "thin_by": 1}
 LEGACY_PREFIXES = (
     ("planets", "companions"),
@@ -247,7 +248,7 @@ def _build(raw: Mapping[str, str], lists: Mapping[str, tuple[str, ...]]) -> Sett
         fit_ttvs=_typed(raw, "fit_ttvs", _bool, False),
         mcmc=_build_mcmc(raw),
         jx=_build_jx(raw),
-        ld_law=_per_inst(raw, "host_ld_law_", inst_all, str, None),
+        ld_law=MappingProxyType({i: _ld_law(raw, i) for i in inst_all}),
         ld_space=_per_inst(raw, "host_ld_space_", inst_all, str, "q"),
         t_exp=_per_inst(raw, "t_exp_", inst_all, float, None),
         t_exp_n_int=_per_inst(raw, "t_exp_n_int_", inst_all, int, None),
@@ -258,6 +259,14 @@ def _build(raw: Mapping[str, str], lists: Mapping[str, tuple[str, ...]]) -> Sett
             {(k, i): _typed(raw, f"error_{k}_{i}", str, "sample") for k, i in kinds}
         ),
     )
+
+
+def _ld_law(raw: Mapping[str, str], inst: str) -> str | None:
+    # allesfitter2: empty/missing means 'quad'; only an explicit 'none' disables LD
+    value = raw.get(f"host_ld_law_{inst}", "")
+    if not value:
+        return DEFAULT_LD_LAW
+    return None if value.lower() == "none" else value
 
 
 def _per_inst(
