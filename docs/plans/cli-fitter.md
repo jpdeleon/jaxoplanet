@@ -1,6 +1,16 @@
-# Plan: allesfitter-style CLI with jaxoplanet as backend
+# Plan: jaxoplanet2, an allesfitter-style fitter on a jaxoplanet hard fork
 
 Branch: `feat/cli-fitter`
+
+## Decisions
+
+| Question | Decision |
+|---|---|
+| Relationship to upstream | **Hard fork.** This repo is renamed `jaxoplanet` → `jaxoplanet2`. It keeps the vendored `jaxoplanet` library source, which is still synced from `upstream/main`, and adds a new `jaxoplanet2` package that holds the fitter. |
+| Distribution name | `jaxoplanet2` (on PyPI and in `pyproject.toml`) |
+| Import names | `jaxoplanet` for the vendored library (unchanged), `jaxoplanet2` for the fitter |
+| CLI command | `jaxoplanet` (`uv run jaxoplanet show-initial-guess .`) |
+| `mcmc_nwalkers` | Mapped to the NUTS chain count, capped by the device count. `jx_num_chains` overrides it. |
 
 ## Goal
 
@@ -23,7 +33,7 @@ Each command also has a Python equivalent that mirrors allesfitter's
 module-level functions, so existing `run.py` scripts port by changing one import:
 
 ```python
-import jaxoplanet.fit as jf
+import jaxoplanet2 as jf
 jf.show_initial_guess(".")
 jf.optimize(".")
 jf.mcmc_fit(".")
@@ -34,7 +44,9 @@ jf.mcmc_output(".")
 
 - Full feature parity with allesfitter (flares, spots, phase curves,
   secondary eclipses, stellar grids, `ellc` eclipsing binaries).
-- Changing any existing jaxoplanet public API. The fitter is additive.
+- Changing the vendored `jaxoplanet` package. The fitter only *uses* it, so
+  upstream merges stay conflict-free outside `pyproject.toml` and `README.md`.
+  Any fix needed in `jaxoplanet` itself goes upstream as a PR first.
 
 ## Design principles
 
@@ -42,9 +54,9 @@ jf.mcmc_output(".")
    (`params.csv`, `settings.csv`, `<inst>.csv`) should parse unchanged.
    Settings and parameters we don't support fail loudly with a list of the
    offending keys (`--allow-unsupported` downgrades to warnings), never silently.
-2. **Optional dependency.** Core `jaxoplanet` stays `jax`, `jaxlib`,
-   `equinox`. The fitter lives behind a `fit` extra; the CLI entry point imports
-   lazily and prints `pip install "jaxoplanet[fit]"` if deps are missing.
+2. **Fork hygiene.** All new code lives in `src/jaxoplanet2/` and `tests/jaxoplanet2/`.
+   The only upstream-owned files touched are `pyproject.toml` and `README.md`, so a
+   `git merge upstream/main` conflicts in at most those two.
 3. **Pure core, thin shell.** The parsing, then model building, then inference
    steps are pure functions on frozen dataclasses. The CLI only does argument
    parsing and file I/O.
@@ -54,7 +66,8 @@ jf.mcmc_output(".")
 ## Package layout
 
 ```
-src/jaxoplanet/fit/
+src/jaxoplanet/          # vendored upstream library, untouched
+src/jaxoplanet2/
 ├── __init__.py          # public API: show_initial_guess, optimize, mcmc_fit, ...
 ├── cli.py               # argparse subcommands -> public API
 ├── io/
@@ -86,15 +99,41 @@ src/jaxoplanet/fit/
 `pyproject.toml` changes:
 
 ```toml
-[project.optional-dependencies]
-fit = ["numpy", "numpyro>=0.21", "numpyro-ext", "tinygp",
-       "matplotlib", "corner", "arviz>=1.0", "pandas"]
+[project]
+name = "jaxoplanet2"
+dependencies = ["jax", "jaxlib", "equinox",            # upstream's
+                "numpy", "numpyro>=0.21", "numpyro-ext", "tinygp",
+                "matplotlib", "corner", "arviz>=1.0", "pandas"]
 
 [project.scripts]
-jaxoplanet = "jaxoplanet.fit.cli:main"
+jaxoplanet = "jaxoplanet2.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/jaxoplanet", "src/jaxoplanet2"]
+
+[tool.hatch.version]
+source = "vcs"
+raw-options = { tag_regex = "^jaxoplanet2-v(?P<version>.*)$", git_describe_command = "git describe --tags --match 'jaxoplanet2-v*'" }
 ```
 
-Use `argparse` (stdlib) rather than adding a CLI dependency.
+The fitter is the whole point of the distribution, so its dependencies are core
+rather than an extra. Use `argparse` (stdlib) rather than adding a CLI dependency.
+
+**Version tags:** the fork inherits upstream tags such as `v0.1.0`. jaxoplanet2
+releases are tagged `jaxoplanet2-vX.Y.Z` so the two version lines never mix.
+
+**Installation conflict:** `jaxoplanet2` provides the `jaxoplanet` module.
+Installing it alongside `pip install jaxoplanet` in one environment makes the two
+overwrite each other. The README states this, and `jaxoplanet2.__init__` warns if
+`importlib.metadata` reports that the `jaxoplanet` distribution is also installed.
+
+**Upstream sync runbook** (to `docs/plans/` → later `CONTRIBUTING.md`):
+
+```bash
+git fetch upstream
+git switch main && git merge upstream/main   # conflicts only in pyproject.toml/README.md
+uv run pytest tests/jaxoplanet2               # the fitter still works on the new core
+```
 
 ## File formats
 
@@ -196,7 +235,8 @@ a in au, i in degrees, b, T14, T23, ρ⋆, e, ω, Teq, Mp from K.
 ## Phases
 
 ### Phase 0: scaffolding (about 0.5 day)
-- Add the `fit` extra, the entry point, `jaxoplanet --help`, and `init` with templates.
+- Rename the distribution to `jaxoplanet2` in `pyproject.toml`, add the `src/jaxoplanet2/` package, and make wheel packaging and version tags follow the Package layout section.
+- Add the `jaxoplanet` entry point, `jaxoplanet --help`, and `init` with templates.
 - Tests: running the CLI and `init` creates valid files that round-trip through the parsers.
 
 ### Phase 1: IO + show-initial-guess (about 2 days)
@@ -226,7 +266,8 @@ a in au, i in degrees, b, T14, T23, ρ⋆, e, ω, Teq, Mp from K.
 
 ## Testing strategy
 
-- `tests/fit/`, pytest, aiming for at least 80% coverage on `jaxoplanet/fit`.
+- `tests/jaxoplanet2/`, pytest, aiming for at least 80% coverage on `jaxoplanet2`.
+  The upstream `tests/` suite keeps running unchanged to catch regressions from merges.
 - Unit tests: parsers, priors, the parameterization math (compare against
   analytic formulas).
 - Integration tests: the numpyro model's log density at a known point matches a
@@ -240,17 +281,15 @@ a in au, i in degrees, b, T14, T23, ρ⋆, e, ω, Teq, Mp from K.
 1. **Parameterization parity.** Mismatches in allesfitter's conventions for
    rsuma, the ω sign, epoch reference and LD q→u are the likeliest source of
    subtle bias. The golden test is there to catch this.
-2. **Walkers vs NUTS.** `mcmc_nwalkers` has no NUTS equivalent. The plan is to map
-   it to chains, cap by device count and document it. Is that acceptable, or
-   should MCMC settings be `jx_`-only?
-3. **Upstream fit.** Does this belong in upstream `jaxoplanet` (where
-   maintainers may prefer a separate package), or as a standalone
-   `jaxofitter` package that depends on jaxoplanet? The layout above works for
-   either. Only the import path and the entry point change. **I recommend
-   building it here on the fork and extracting it to a separate repo if upstream
-   declines.**
-4. **GP cost.** Full-cadence TESS with a GP is O(N) with tinygp's quasisep
+2. **Walkers vs NUTS (decided).** `mcmc_nwalkers` maps to the chain count, capped
+   by devices. The log and `mcmc_diagnostics.txt` record the mapping so users of
+   old settings files aren't surprised.
+3. **Fork drift.** If the fork falls behind, merges get painful. Sync with upstream
+   at least monthly, and stay off the vendored `jaxoplanet/` code (design principle 2).
+4. **Module shadowing.** See the installation conflict above. Revisit a
+   dependency-based layout if users need both installed side by side.
+5. **GP cost.** Full-cadence TESS with a GP is O(N) with tinygp's quasisep
    kernels. Require quasisep kernels (Matern32, SHO, Celerite) and reject dense
    ones for N > 10⁴.
-5. **Float64.** Enable x64 by default. Epochs around 2.46e6 lose precision
+6. **Float64.** Enable x64 by default. Epochs around 2.46e6 lose precision
    in float32. Also subtract a reference time internally.
