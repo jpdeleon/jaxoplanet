@@ -70,7 +70,7 @@ def test_linear_ld():
 
 
 def test_no_ld():
-    s = settings("companions_phot,b\ninst_phot,tess\n")
+    s = settings("companions_phot,b\ninst_phot,tess\nhost_ld_law_tess,none\n")
     assert ld_coefficients({}, s, "tess").shape == (0,)
 
 
