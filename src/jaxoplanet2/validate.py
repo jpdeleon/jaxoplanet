@@ -7,10 +7,8 @@ import numpy as np
 
 from jaxoplanet2._jax import configure_jax
 from jaxoplanet2.fitdir import FitDirectory, load_fit_directory
-from jaxoplanet2.model.noise import gaussian_loglike, white_noise_sigma
-from jaxoplanet2.model.photometry import flux_model
+from jaxoplanet2.model.numpyro_model import initial_values, log_prob_parts
 from jaxoplanet2.model.requirements import check_params
-from jaxoplanet2.model.rv import rv_model
 
 
 @dataclass
@@ -64,17 +62,20 @@ def _check_parameters(
 
 
 def _check_likelihood(fit: FitDirectory, report: ValidationReport) -> None:
-    values = fit.params.values()
-    total = 0.0
-    for inst, data in fit.data.items():
-        model = flux_model if data.kind == "flux" else rv_model
-        mu = model(values, fit.settings, inst, data.time)
-        sigma = white_noise_sigma(values, fit.settings, data)
-        ll = float(gaussian_loglike(data.y - mu, sigma))
+    try:
+        parts = log_prob_parts(fit, initial_values(fit))
+    except NotImplementedError as e:
+        report.errors.append(str(e))
+        return
+    for inst, ll in parts.per_instrument.items():
         if not np.isfinite(ll):
             report.errors.append(
                 f"{inst}: log-likelihood is not finite at initial values"
             )
-        total += ll
+    if not np.isfinite(parts.log_prior):
+        report.errors.append("log-prior is not finite at initial values")
     if report.ok:
-        report.info.append(f"log-likelihood at initial values: {total:.3f}")
+        report.info.append(f"log-prior at initial values: {parts.log_prior:.3f}")
+        report.info.append(
+            f"log-likelihood at initial values: {parts.log_likelihood:.3f}"
+        )
