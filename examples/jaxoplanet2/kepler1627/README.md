@@ -40,17 +40,21 @@ exactly as allesfitter would with the same settings.
   ~2.6 d rotation.
 
 - `mcmc-fit` with 4 parallel chains of only 150 warmup + 150 draws took
-  **2 h 46 min** and did **not** converge for the transit shape: r_hat 1.58-1.76
-  (ESS ~3.5) for rr, rsuma and cosi, while epoch, period, the white noise and all
-  four GP parameters converged (r_hat <= 1.004, ESS 390-715). Medians:
-  Rp/R* = 0.0398 (-0.0014 / +0.0029), P = 7.2028039 +- 0.0000050 d,
-  ln omega0 = 0.922 (-0.020 / +0.025), b = 0.55 +- 0.27, T14 = 2.86 h.
+  **2 h 03 min** with 0 divergences. The transit shape is close to
+  converged: r_hat 1.012-1.035 and ESS 57-75 for radius_ratio, duration and
+  impact_param; the limb darkening is similar (r_hat 1.032-1.033, ESS 78-118).
+  time_transit, period, the white noise and all four GP parameters converged
+  (r_hat <= 1.004, ESS 520-775). Medians: Rp/R* = 0.0399 (-0.0016 / +0.0031),
+  P = 7.2028036 +- 0.0000046 d, T14 = 2.861 h (-0.057 / +0.101), b = 0.57
+  (-0.35 / +0.25).
 
-  Why: each gradient costs ~72 ms here (10-point exposure integration of 3194
-  cadences ~37 ms; the SHO GP roughly doubles it), and the near-central transit
-  has the classic rr-b-rsuma degeneracy, so NUTS takes ~500 leapfrog steps per
-  draw while its mass matrix is still adapting. Budget a long run (the shipped
-  `mcmc_burn_steps,500` / `mcmc_total_steps,1000`) on a many-core machine.
+  With allesfitter's (rr, rsuma, cosi) the same short run took 2 h 46 min and
+  did not converge at all for the transit shape (r_hat 1.58-1.76, ESS ~3.5;
+  limb darkening r_hat up to 1.25). Sampling duration and b, which the transit
+  constrains directly, removes most of the rr-rsuma-cosi degeneracy. Each
+  gradient still costs ~72 ms here (10-point exposure integration of 3194
+  cadences plus the SHO GP), so budget the shipped `mcmc_burn_steps,500` /
+  `mcmc_total_steps,1000` for a converged posterior.
 
 ## A note on the notebook's ephemeris
 
