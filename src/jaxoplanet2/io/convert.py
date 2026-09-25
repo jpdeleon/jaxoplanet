@@ -1,11 +1,9 @@
 """Convert allesfitter's (rr, rsuma, cosi, epoch) to jaxoplanet-native parameters.
 
-| allesfitter      | jaxoplanet-native     | conversion                          |
-|------------------|-----------------------|-------------------------------------|
-| ``<c>_rr``       | ``<c>_radius_ratio``  | identical                           |
-| ``<c>_epoch``    | ``<c>_time_transit``  | identical (mid-transit time)        |
-| ``<c>_rsuma``    | ``<c>_duration``      | T14 from (k, a/R*, i, P, e, w)      |
-| ``<c>_cosi``     | ``<c>_impact_param``  | b from (a/R*, i, e, w)              |
+- ``<c>_rr`` -> ``<c>_radius_ratio``: identical
+- ``<c>_epoch`` -> ``<c>_time_transit``: identical (mid-transit time)
+- ``<c>_rsuma`` -> ``<c>_duration``: T14 from (k, a/R*, i, P, e, w)
+- ``<c>_cosi`` -> ``<c>_impact_param``: b from (a/R*, i, e, w)
 
 Values and truths convert exactly (the model inverts the same equations).
 Priors on ``rr`` and ``epoch`` carry over; a prior on ``rsuma`` or ``cosi`` has no

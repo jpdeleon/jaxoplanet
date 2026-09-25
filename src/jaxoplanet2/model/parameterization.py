@@ -10,7 +10,7 @@ what transit data constrain directly and therefore sample well:
 plus ``<c>_f_c = sqrt(e) cos(w)``, ``<c>_f_s = sqrt(e) sin(w)`` and ``<c>_K``.
 ``TransitOrbit`` itself moves the planet in a straight line on a circular orbit;
 to stay exact (curved, eccentric, RV-consistent), these parameters are mapped
-onto a Keplerian orbit instead by inverting Winn (2010) eqs. 7 and 14:
+onto a Keplerian orbit instead by inverting Winn (2010) eqs. 7 and 14::
 
     b = (a/R*) cos i (1 - e^2) / (1 + e sin w)
     T14 = P/pi asin(sqrt((1 + k)^2 - b^2) / ((a/R*) sin i))

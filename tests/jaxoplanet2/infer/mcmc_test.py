@@ -99,7 +99,7 @@ def test_cli_mcmc_fit_rejects_invalid_directory(tiny_fit):
 def test_posterior_contains_the_truth(tmp_path):
     fit = make_fit_dir(
         tmp_path / "fit",
-        extra_settings="mcmc_nwalkers,2\nmcmc_total_steps,500\nmcmc_burn_steps,250\n",
+        extra_settings="mcmc_nwalkers,2\nmcmc_total_steps,800\nmcmc_burn_steps,400\n",
     )
     result = mcmc_fit(fit, quiet=True, progress_bar=False)
     samples, _ = load_samples(fit)

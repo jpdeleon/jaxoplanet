@@ -41,6 +41,7 @@ def test_missing_jaxns_is_explained(monkeypatch):
 
 
 def test_cli_ns_fit_writes_evidence_and_tables(tmp_path):
+    pytest.importorskip("jaxns")
     fit = make_fit_dir(tmp_path / "fit", extra_settings=QUICK)
     result = runner.invoke(app, ["ns-fit", str(fit), "-q"])
     assert result.exit_code == 0, result.output
@@ -56,6 +57,7 @@ def test_cli_ns_fit_writes_evidence_and_tables(tmp_path):
 
 @pytest.mark.slow
 def test_nested_sampling_recovers_the_truth(tmp_path):
+    pytest.importorskip("jaxns")
     fit = make_fit_dir(tmp_path / "fit")
     result = nested.ns_fit(fit, quiet=True)
     for name in ("b_radius_ratio", "b_time_transit", "b_period"):
