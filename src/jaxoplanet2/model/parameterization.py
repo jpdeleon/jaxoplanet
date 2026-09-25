@@ -1,14 +1,26 @@
-"""allesfitter parameters -> jaxoplanet orbits.
+"""jaxoplanet-native transit parameters -> exact Keplerian orbits.
 
-allesfitter describes each companion by ``rr = Rp/R*``, ``rsuma = (R* + Rp)/a``,
-``cosi``, ``epoch``, ``period``, ``f_c = sqrt(e) cos(w)``, ``f_s = sqrt(e) sin(w)``
-and ``K``. Two conventions matter when mapping these onto jaxoplanet:
+Each companion is described by jaxoplanet's ``TransitOrbit`` inputs, which are
+what transit data constrain directly and therefore sample well:
 
-- allesfitter's ``epoch`` is the time of *minimum projected separation* (mid
-  eclipse), while jaxoplanet's ``time_transit`` is inferior conjunction. They
-  differ for eccentric, inclined orbits; :func:`mid_eclipse_offset` bridges them.
-- Every companion gets its own central body sized so that ``a/R*`` matches its
-  ``rsuma``, just as allesfitter models each companion independently.
+- ``<c>_period``, ``<c>_time_transit`` (mid-transit time),
+- ``<c>_duration`` (total transit duration T14, first to fourth contact),
+- ``<c>_impact_param`` (b), ``<c>_radius_ratio`` (k = Rp/R*),
+
+plus ``<c>_f_c = sqrt(e) cos(w)``, ``<c>_f_s = sqrt(e) sin(w)`` and ``<c>_K``.
+``TransitOrbit`` itself moves the planet in a straight line on a circular orbit;
+to stay exact (curved, eccentric, RV-consistent), these parameters are mapped
+onto a Keplerian orbit instead by inverting Winn (2010) eqs. 7 and 14:
+
+    b = (a/R*) cos i (1 - e^2) / (1 + e sin w)
+    T14 = P/pi asin(sqrt((1 + k)^2 - b^2) / ((a/R*) sin i))
+          * sqrt(1 - e^2) / (1 + e sin w)
+
+which is exact for circular orbits. ``time_transit`` is the time of minimum
+projected separation (allesfitter's epoch); jaxoplanet's Keplerian
+``time_transit`` is inferior conjunction, and :func:`mid_eclipse_offset` bridges
+the two for eccentric, inclined orbits. Every companion gets its own central
+body sized to its own a/R*, as allesfitter models companions independently.
 
 Everything here is pure JAX, so it can be jitted and differentiated.
 """
@@ -28,19 +40,52 @@ MAX_NEWTON_STEP = 0.5  # radians of true anomaly
 # G in cgs with the jaxoplanet time unit (days): rho = 3 pi (a/R*)^3 / (G P^2)
 G_CGS = 6.6743e-8
 SECONDS_PER_DAY = 86400.0
+# the native transit parameters, as named by jaxoplanet's TransitOrbit
+TRANSIT_PARAMS = ("radius_ratio", "duration", "impact_param", "time_transit", "period")
 
 
 class Geometry(NamedTuple):
     a_over_rstar: jax.Array
     radius_1: jax.Array  # R*/a, allesfitter's radius_1
-    rr: jax.Array
+    rr: jax.Array  # radius ratio k
+    impact_param: jax.Array
+    duration: jax.Array  # T14; NaN for companions without a transit
     inclination: jax.Array
     eccentricity: jax.Array
     cos_omega: jax.Array
     sin_omega: jax.Array
-    epoch: jax.Array
+    time_transit: jax.Array
     period: jax.Array
     K: jax.Array
+
+    @property
+    def rsuma(self) -> jax.Array:
+        """allesfitter's (R* + Rp)/a."""
+        return (1.0 + self.rr) / self.a_over_rstar
+
+
+def eccentricity_factors(ecc, sin_omega) -> tuple[jax.Array, jax.Array]:
+    """(b factor (1-e^2)/(1+e sin w), duration factor sqrt(1-e^2)/(1+e sin w))."""
+    denom = 1.0 + ecc * sin_omega
+    return (1.0 - ecc**2) / denom, jnp.sqrt(1.0 - ecc**2) / denom
+
+
+def orbit_from_transit(k, b, duration, period, *, ecc, sin_omega):
+    """(a/R*, inclination) that give the transit (k, b, T14) on this orbit."""
+    b_factor, t_factor = eccentricity_factors(ecc, sin_omega)
+    chord = jnp.sqrt(jnp.maximum((1.0 + k) ** 2 - b**2, 0.0))
+    a_sin_i = chord / jnp.sin(jnp.pi * duration / (period * t_factor))
+    a_cos_i = b / b_factor
+    return jnp.hypot(a_sin_i, a_cos_i), jnp.arctan2(a_sin_i, a_cos_i)
+
+
+def transit_from_orbit(k, a_over_rstar, inclination, period, *, ecc, sin_omega):
+    """(b, T14): the forward map of :func:`orbit_from_transit`."""
+    b_factor, t_factor = eccentricity_factors(ecc, sin_omega)
+    b = a_over_rstar * jnp.cos(inclination) * b_factor
+    chord = jnp.sqrt(jnp.maximum((1.0 + k) ** 2 - b**2, 0.0))
+    arg = chord / (a_over_rstar * jnp.sin(inclination))
+    return b, period / jnp.pi * jnp.arcsin(jnp.clip(arg, -1.0, 1.0)) * t_factor
 
 
 def companion_geometry(values: Mapping[str, jax.Array | float], c: str) -> Geometry:
@@ -52,27 +97,35 @@ def companion_geometry(values: Mapping[str, jax.Array | float], c: str) -> Geome
             return jnp.asarray(default, dtype=float)
         return jnp.asarray(values[key], dtype=float)
 
-    rr = get("rr", 0.0)
-    if f"{c}_rsuma" in values:
-        rsuma = get("rsuma")
-        a_over_rstar = (1.0 + rr) / rsuma
-    else:
-        a_over_rstar = jnp.asarray(RV_ONLY_A_OVER_RSTAR)
     f_c, f_s = get("f_c", 0.0), get("f_s", 0.0)
     ecc = f_c**2 + f_s**2
     # double-where keeps gradients finite at e = 0, where omega is undefined
     positive = ecc > 0
     sqrt_e = jnp.sqrt(jnp.where(positive, ecc, 1.0))
+    cos_omega = jnp.where(positive, f_c / sqrt_e, 0.0)
+    sin_omega = jnp.where(positive, f_s / sqrt_e, 1.0)
+    k, b, period = get("radius_ratio", 0.0), get("impact_param", 0.0), get("period")
+    if f"{c}_duration" in values:
+        duration = get("duration")
+        a_over_rstar, inclination = orbit_from_transit(
+            k, b, duration, period, ecc=ecc, sin_omega=sin_omega
+        )
+    else:  # RV-only companion: the transit geometry does not enter the model
+        duration = jnp.asarray(jnp.nan)
+        a_over_rstar = jnp.asarray(RV_ONLY_A_OVER_RSTAR)
+        inclination = jnp.asarray(jnp.pi / 2)
     return Geometry(
         a_over_rstar=a_over_rstar,
         radius_1=1.0 / a_over_rstar,
-        rr=rr,
-        inclination=jnp.arccos(get("cosi", 0.0)),
+        rr=k,
+        impact_param=b,
+        duration=duration,
+        inclination=inclination,
         eccentricity=ecc,
-        cos_omega=jnp.where(positive, f_c / sqrt_e, 0.0),
-        sin_omega=jnp.where(positive, f_s / sqrt_e, 1.0),
-        epoch=get("epoch"),
-        period=get("period"),
+        cos_omega=cos_omega,
+        sin_omega=sin_omega,
+        time_transit=get("time_transit"),
+        period=period,
         K=get("K", 0.0),
     )
 
@@ -146,13 +199,13 @@ def companion_orbit(values: Mapping[str, jax.Array | float], c: str) -> OrbitalB
         "radial_velocity_semiamplitude": g.K,
     }
     if is_fixed_circular(values, c):
-        system = System(central).add_body(time_transit=g.epoch, **common)
+        system = System(central).add_body(time_transit=g.time_transit, **common)
         return system.bodies[0]
     offset = mid_eclipse_offset(
         g.period, g.eccentricity, g.cos_omega, g.sin_omega, g.inclination
     )
     system = System(central).add_body(
-        time_transit=g.epoch - offset,
+        time_transit=g.time_transit - offset,
         eccentricity=g.eccentricity,
         cos_omega_peri=g.cos_omega,
         sin_omega_peri=g.sin_omega,
@@ -162,7 +215,7 @@ def companion_orbit(values: Mapping[str, jax.Array | float], c: str) -> OrbitalB
 
 
 def host_density_cgs(values: Mapping[str, jax.Array | float], c: str) -> jax.Array:
-    """Host density implied by ``rsuma`` and ``period`` (Kepler's third law).
+    """Host density implied by the transit's a/R* and ``period`` (Kepler's law).
 
     Neglects the companion's mass, as allesfitter does for photometry-only fits.
     """

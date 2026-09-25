@@ -6,6 +6,7 @@ from scipy.optimize import brentq
 from jaxoplanet2.io.settings import parse_settings_text
 from jaxoplanet2.model.parameterization import mid_eclipse_offset
 from jaxoplanet2.model.rv import rv_model
+from tests.jaxoplanet2.native import from_allesfitter
 
 jax.config.update("jax_enable_x64", True)
 
@@ -18,7 +19,7 @@ def settings(text=SETTINGS):
 
 def values(**overrides):
     base = {"b_epoch": 2459000.3, "b_period": 3.0, "b_K": 0.05}
-    return {**base, **overrides}
+    return from_allesfitter({**base, **overrides})
 
 
 def keplerian_rv(t, epoch, period, K, *, f_c=0.0, f_s=0.0, cosi=0.0):
@@ -45,9 +46,9 @@ def keplerian_rv(t, epoch, period, K, *, f_c=0.0, f_s=0.0, cosi=0.0):
 
 def test_circular_rv_is_a_sine_through_the_epoch():
     v = values()
-    t = v["b_epoch"] + np.linspace(0, 3, 301)
+    t = v["b_time_transit"] + np.linspace(0, 3, 301)
     got = np.asarray(rv_model(v, settings(), "harps", t))
-    expected = -0.05 * np.sin(2 * np.pi * (t - v["b_epoch"]) / 3.0)
+    expected = -0.05 * np.sin(2 * np.pi * (t - v["b_time_transit"]) / 3.0)
     np.testing.assert_allclose(got, expected, atol=1e-9)
 
 
@@ -56,9 +57,11 @@ def test_circular_rv_is_a_sine_through_the_epoch():
 )
 def test_eccentric_rv_matches_textbook_keplerian(f_c, f_s, cosi):
     v = values(b_f_c=f_c, b_f_s=f_s, b_cosi=cosi, b_rr=0.1, b_rsuma=0.1)
-    t = v["b_epoch"] + np.linspace(-1.5, 1.5, 61)
+    t = v["b_time_transit"] + np.linspace(-1.5, 1.5, 61)
     got = np.asarray(rv_model(v, settings(), "harps", t))
-    expected = keplerian_rv(t, v["b_epoch"], 3.0, 0.05, f_c=f_c, f_s=f_s, cosi=cosi)
+    expected = keplerian_rv(
+        t, v["b_time_transit"], 3.0, 0.05, f_c=f_c, f_s=f_s, cosi=cosi
+    )
     np.testing.assert_allclose(got, expected, atol=1e-9)
 
 

@@ -10,8 +10,9 @@ from jaxoplanet2.io.params import parse_params_text
 from jaxoplanet2.io.settings import parse_settings_text
 from jaxoplanet2.model.requirements import check_params, required_params
 from jaxoplanet2.validate import validate
+from tests.jaxoplanet2.native import native_golden
 
-GOLDEN = Path(__file__).parent / "golden" / "cases"
+GOLDEN = native_golden()  # golden cases converted to native parameters
 runner = CliRunner()
 
 
@@ -25,14 +26,21 @@ def table(rows):
 
 PHOT = "companions_phot,b\ninst_phot,tess\n"
 FULL_PHOT_PARAMS = (
-    "b_rr,0.1,0,,,\nb_rsuma,0.1,0,,,\nb_cosi,0,0,,,\nb_epoch,1,0,,,\nb_period,3,0,,,\n"
+    "b_radius_ratio,0.1,0,,,\nb_duration,0.1,0,,,\nb_impact_param,0,0,,,\n"
+    "b_time_transit,1,0,,,\nb_period,3,0,,,\n"
     "host_ldc_q1_tess,0.4,0,,,\nhost_ldc_q2_tess,0.3,0,,,\nln_err_flux_tess,-7,0,,,\n"
 )
 
 
 def test_required_params_for_photometry():
     req = required_params(settings(PHOT))
-    for name in ("b_rr", "b_rsuma", "b_cosi", "b_epoch", "b_period"):
+    for name in (
+        "b_radius_ratio",
+        "b_duration",
+        "b_impact_param",
+        "b_time_transit",
+        "b_period",
+    ):
         assert name in req
     assert "host_ldc_q1_tess" in req
     assert "ln_err_flux_tess" in req
@@ -41,11 +49,11 @@ def test_required_params_for_photometry():
 def test_required_params_for_rv_and_baselines():
     s = settings("companions_rv,b\ninst_rv,harps\nbaseline_rv_harps,sample_linear\n")
     req = required_params(s)
-    for name in ("b_epoch", "b_period", "b_K", "ln_jitter_rv_harps"):
+    for name in ("b_time_transit", "b_period", "b_K", "ln_jitter_rv_harps"):
         assert name in req
     assert "baseline_offset_rv_harps" in req
     assert "baseline_slope_rv_harps" in req
-    assert "b_rr" not in req
+    assert "b_radius_ratio" not in req
 
 
 def test_required_ld_follows_law_and_space():
@@ -178,3 +186,18 @@ def test_initial_values_are_used(tmp_path):
     report = validate(GOLDEN / "circular_batman")
     ll = [line for line in report.info if "log-likelihood" in line]
     assert ll and np.isfinite(float(ll[0].split()[-1]))
+
+
+def test_allesfitter_parameters_point_to_convert_params(tmp_path):
+    rows = (
+        "b_rr,0.1,0,,,\nb_rsuma,0.1,0,,,\nb_cosi,0,0,,,\nb_epoch,1,0,,,\n"
+        "b_period,3,0,,,\n"
+    )
+    check = check_params(settings(PHOT), table(rows))
+    assert set(check.legacy) == {"b_rr", "b_rsuma", "b_cosi", "b_epoch"}
+    shutil.copytree(
+        Path(__file__).parent / "golden" / "cases" / "circular_batman", tmp_path / "fit"
+    )
+    report = validate(tmp_path / "fit")
+    assert not report.ok
+    assert any("convert-params" in e for e in report.errors)

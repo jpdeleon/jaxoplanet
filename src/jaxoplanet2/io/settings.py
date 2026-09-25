@@ -75,7 +75,7 @@ class JxSettings:
     # 0.99: zero divergences on a synthetic transit, vs 47/600 at 0.9 (see #23)
     nuts_target_accept: float = 0.99
     nuts_max_tree_depth: int = 10
-    # transit posteriors are strongly correlated (rr, rsuma, cosi): a dense
+    # transit posteriors are correlated (e.g. radius_ratio, impact_param): a dense
     # mass matrix needs ~2.6x fewer leapfrog steps than a diagonal one
     nuts_dense_mass: bool = True
     optimizer: str = "lbfgs"

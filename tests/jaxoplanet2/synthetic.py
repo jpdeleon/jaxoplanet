@@ -16,10 +16,11 @@ from jaxoplanet2.model.rv import rv_model
 jax.config.update("jax_enable_x64", True)
 
 TRUTH = {
-    "b_rr": 0.1,
-    "b_rsuma": 0.1,
-    "b_cosi": 0.02,
-    "b_epoch": 2459000.4,
+    "b_radius_ratio": 0.1,
+    # T14 and b of a/R* = 11, cos i = 0.02 (the orbit this fixture always used)
+    "b_duration": 0.09998162903756017,
+    "b_impact_param": 0.22,
+    "b_time_transit": 2459000.4,
     "b_period": 3.2,
     "b_K": 0.02,
     "host_ldc_q1_tess": 0.4,
@@ -32,10 +33,10 @@ TRUTH = {
     "baseline_offset_rv_harps": 0.01,
 }
 PRIORS = {
-    "b_rr": "uniform 0.0 0.3",
-    "b_rsuma": "uniform 0.0 0.5",
-    "b_cosi": "uniform 0.0 1.0",
-    "b_epoch": "uniform 2459000.3 2459000.5",
+    "b_radius_ratio": "uniform 0.0 0.3",
+    "b_duration": "uniform 0.03 0.3",
+    "b_impact_param": "uniform 0.0 1.2",
+    "b_time_transit": "uniform 2459000.3 2459000.5",
     "b_period": "uniform 3.1 3.3",
     "b_K": "uniform 0.0 0.1",
     "host_ldc_q1_tess": "uniform 0.0 1.0",
@@ -80,14 +81,14 @@ def make_fit_dir(
 
     # three transits of 2-min photometry, plus RVs across the orbit
     t = np.concatenate(
-        [np.arange(-0.2, 0.2, 2 / 1440) + TRUTH["b_epoch"] + k * TRUTH["b_period"]
+        [np.arange(-0.2, 0.2, 2 / 1440) + TRUTH["b_time_transit"] + k * TRUTH["b_period"]
          for k in range(3)]
     )  # fmt: skip
     truth = {n: TRUTH[n] for n in names}
     flux = np.asarray(flux_model(truth, settings, "tess", t))
     _write(path / "tess.csv", t, flux + rng.normal(0, 1e-3, t.size), 1e-3)
     if rv:
-        tr = np.sort(TRUTH["b_epoch"] + rng.uniform(0, 30, 40))
+        tr = np.sort(TRUTH["b_time_transit"] + rng.uniform(0, 30, 40))
         signal = np.asarray(rv_model(truth, settings, "harps", tr))
         noise = rng.normal(
             0, np.hypot(3e-3, np.exp(TRUTH["ln_jitter_rv_harps"])), tr.size

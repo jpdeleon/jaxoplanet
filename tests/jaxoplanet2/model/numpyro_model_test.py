@@ -1,5 +1,3 @@
-from pathlib import Path
-
 import jax
 import numpy as np
 import pytest
@@ -18,9 +16,11 @@ from jaxoplanet2.model.numpyro_model import (
 )
 from jaxoplanet2.model.photometry import flux_model
 from jaxoplanet2.model.rv import rv_model
+from tests.jaxoplanet2.native import native_golden
 
 jax.config.update("jax_enable_x64", True)
-GOLDEN = Path(__file__).parents[1] / "golden" / "cases"
+
+GOLDEN = native_golden()  # golden cases converted to native parameters
 
 
 def scipy_logpdf(prior, x):
@@ -42,7 +42,7 @@ def fit():
 def test_initial_values_are_the_free_params(fit):
     init = initial_values(fit)
     assert set(init) == {p.name for p in fit.params.free}
-    assert init["b_rr"] == pytest.approx(0.1)
+    assert init["b_radius_ratio"] == pytest.approx(0.1)
 
 
 def test_log_prob_parts_match_independent_computation(fit):

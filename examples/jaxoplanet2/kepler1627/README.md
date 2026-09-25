@@ -10,7 +10,7 @@ allesfitter-style `settings.csv` + `params.csv` and run from the command line.
 |---|---|
 | numpyro model in Python | `settings.csv` + `params.csv` |
 | quasi-periodic rotation kernel (tinygp) | `baseline_flux_kepler,sample_GP_SHO` (allesfitter's SHO GP) |
-| `(duration, t0, ror, b)` sampled | allesfitter's `(rr, rsuma, cosi, epoch, period)` |
+| `(duration, t0, ror, b)` sampled | the same: `b_duration`, `b_time_transit`, `b_radius_ratio`, `b_impact_param` (+ `b_period`) |
 | long-cadence integration | `t_exp_kepler`, `t_exp_n_int_kepler` |
 | MAP with `numpyro_ext` | `jaxoplanet optimize` |
 | NUTS + arviz summary | `jaxoplanet mcmc-fit` (tables and plots written automatically) |

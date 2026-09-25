@@ -82,18 +82,18 @@ def test_shift_epochs_updates_value_and_prior_and_reports_shifts():
     settings = parse_settings_text("companions_phot,b\ninst_phot,tess\n")
     params = parse_params_text(
         "#name,value,fit,bounds,label,unit\n"
-        "b_epoch,10.0,1,normal 10.0 0.001,,\nb_period,3.0,1,normal 3.0 0.0001,,\n"
+        "b_time_transit,10.0,1,normal 10.0 0.001,,\nb_period,3.0,1,normal 3.0 0.0001,,\n"
     )
     t = np.linspace(100, 130, 300)
     data = {"tess": Dataset("tess", "flux", t, np.ones(300), np.full(300, 1e-3))}
     shifted, shifts = shift_epochs(settings, params, data)
     n = shifts["b"]
     assert n > 0
-    assert shifted["b_epoch"].value == pytest.approx(10.0 + n * 3.0)
-    assert shifted["b_epoch"].prior == Normal(
+    assert shifted["b_time_transit"].value == pytest.approx(10.0 + n * 3.0)
+    assert shifted["b_time_transit"].prior == Normal(
         10.0 + n * 3.0, math.hypot(0.001, n * 1e-4)
     )
-    assert params["b_epoch"].value == 10.0  # the input table is untouched
+    assert params["b_time_transit"].value == 10.0  # the input table is untouched
 
 
 def test_loguniform_epoch_prior_cannot_be_shifted():

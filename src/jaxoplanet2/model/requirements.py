@@ -7,8 +7,10 @@ these, and ``validate`` checks a fit directory against them.
 import re
 from dataclasses import dataclass
 
+from jaxoplanet2.io.convert import is_legacy
 from jaxoplanet2.io.params import ParamTable
 from jaxoplanet2.io.settings import Settings
+from jaxoplanet2.model.parameterization import TRANSIT_PARAMS
 
 # baseline type -> (required, optional) parameter prefixes; the full name is
 # f"{prefix}_{kind}_{inst}", e.g. baseline_offset_flux_tess
@@ -79,10 +81,10 @@ def required_params(settings: Settings) -> dict[str, str]:
     """Parameter name -> why it is needed."""
     req: dict[str, str] = {}
     for c in settings.companions_phot:
-        for p in ("rr", "rsuma", "cosi", "epoch", "period"):
+        for p in TRANSIT_PARAMS:
             req[f"{c}_{p}"] = f"transit model of companion {c}"
     for c in settings.companions_rv:
-        for p in ("epoch", "period", "K"):
+        for p in ("time_transit", "period", "K"):
             req[f"{c}_{p}"] = f"RV model of companion {c}"
     for inst in settings.inst_phot:
         for name in _ld_params(settings, inst):
@@ -99,7 +101,7 @@ def required_params(settings: Settings) -> dict[str, str]:
 def optional_params(settings: Settings) -> set[str]:
     names = set()
     for c in settings.companions_all:
-        names |= {f"{c}_{p}" for p in ("f_c", "f_s", "K", "rr", "rsuma", "cosi")}
+        names |= {f"{c}_{p}" for p in ("f_c", "f_s", "K", *TRANSIT_PARAMS)}
     names |= {f"dil_{inst}" for inst in settings.inst_phot}
     for (kind, inst), baseline in settings.baseline.items():
         names |= set(baseline_params(kind, inst, baseline)[1])
@@ -111,6 +113,7 @@ class ParamCheck:
     missing: tuple[str, ...]
     unsupported: tuple[str, ...]  # present, but jaxoplanet2 cannot honour them
     ignored: tuple[str, ...]  # present and harmless, but not used
+    legacy: tuple[str, ...] = ()  # allesfitter transit parameters (convert-params)
 
 
 def _neutral_extra(name: str, value: float, fit: bool) -> bool | None:
@@ -125,9 +128,12 @@ def check_params(settings: Settings, params: ParamTable) -> ParamCheck:
     required = required_params(settings)
     known = set(required) | optional_params(settings)
     missing = tuple(name for name in required if name not in params)
-    unsupported, ignored = [], []
+    unsupported, ignored, legacy = [], [], []
     for p in params:
         if p.name in known:
+            continue
+        if is_legacy(p.name, settings.companions_all):
+            legacy.append(p.name)
             continue
         if TTV_PARAM.fullmatch(p.name):
             # with fit_ttvs, load_fit_directory already matched them to transits
@@ -136,4 +142,4 @@ def check_params(settings: Settings, params: ParamTable) -> ParamCheck:
             continue
         verdict = _neutral_extra(p.name, p.value, p.fit)
         (ignored if verdict else unsupported).append(p.name)
-    return ParamCheck(missing, tuple(unsupported), tuple(ignored))
+    return ParamCheck(missing, tuple(unsupported), tuple(ignored), tuple(legacy))

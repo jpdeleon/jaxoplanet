@@ -1,21 +1,28 @@
 """Derived parameters from posterior samples, following allesfitter's deriver.
 
-Geometry (always): R*/a, a/R*, Rp/a, i, e, w, the transit impact parameter and
-total/full durations (Winn 2010, eqs. 7, 14, 16) and the host density implied by
-the orbit. With params_star.csv also Rp, a, Teq (albedo 0.3, emissivity 1, as
-allesfitter assumes) and, with an RV semi-amplitude, the companion mass. Stellar
-parameters are drawn per sample, so their uncertainties propagate.
+Geometry (always): R*/a, a/R*, Rp/a, allesfitter's rsuma and cos i, i, e, w,
+the total/full durations (T14 is sampled; T23 from Winn 2010 eq. 16) and the
+host density implied by the orbit. With params_star.csv also Rp, a, Teq
+(albedo 0.3, emissivity 1, as allesfitter assumes) and, with an RV
+semi-amplitude, the companion mass. Stellar parameters are drawn per sample, so
+their uncertainties propagate.
 """
 
 import math
 from collections.abc import Mapping
 from dataclasses import dataclass
 
+import jax
 import numpy as np
 
 from jaxoplanet2.io.settings import Settings
 from jaxoplanet2.model.external_priors import Star, companion_mass_g, split_normal
-from jaxoplanet2.model.parameterization import G_CGS, SECONDS_PER_DAY
+from jaxoplanet2.model.parameterization import (
+    G_CGS,
+    SECONDS_PER_DAY,
+    companion_geometry,
+    eccentricity_factors,
+)
 
 R_EARTH_PER_R_SUN = 109.076
 R_JUP_PER_R_SUN = 9.731
@@ -56,46 +63,44 @@ class _Draws:
             return np.asarray(self.samples[key], dtype=float)
         return np.full(self.n, default)
 
+    def geometry(self):
+        names = ("radius_ratio", "duration", "impact_param", "time_transit",
+                 "period", "f_c", "f_s", "K")  # fmt: skip
+        values = {
+            f"{self.c}_{n}": self.samples[f"{self.c}_{n}"]
+            for n in names
+            if f"{self.c}_{n}" in self.samples
+        }
+        return companion_geometry(values, self.c)
 
-def _duration(*, period, a_over_r, k, b, sin_i, ecc_factor, sign) -> np.ndarray:
-    """Winn (2010) eq. 14 (sign=+1, total) or 16 (sign=-1, full), in hours."""
-    reach = 1 + sign * k
-    arg = np.sqrt(np.clip(reach**2 - b**2, 0, None)) / (a_over_r * sin_i)
-    t = period / math.pi * np.arcsin(np.clip(arg, -1, 1)) * ecc_factor * HOURS
-    return np.where(reach > np.abs(b), t, np.nan)
+
+def _full_duration(g) -> np.ndarray:
+    """T23 (Winn 2010 eq. 16), in hours; NaN for grazing transits."""
+    _, t_factor = eccentricity_factors(g.eccentricity, g.sin_omega)
+    reach = 1.0 - g.rr
+    arg = np.sqrt(np.clip(reach**2 - g.impact_param**2, 0, None)) / (
+        g.a_over_rstar * np.sin(g.inclination)
+    )
+    t = g.period / math.pi * np.arcsin(np.clip(arg, -1, 1)) * t_factor * HOURS
+    return np.where(reach > np.abs(g.impact_param), t, np.nan)
 
 
 def _geometry(get: _Draws) -> dict[str, Derived]:
     c = get.c
-    rr, rsuma, cosi = get("rr", 0.0), get("rsuma", np.nan), get("cosi", 0.0)
-    period, f_c, f_s = get("period", np.nan), get("f_c", 0.0), get("f_s", 0.0)
-    ecc = f_c**2 + f_s**2
-    w = np.where(ecc > 0, np.arctan2(f_s, f_c), math.pi / 2)
-    a_over_r = (1 + rr) / rsuma
-    b = a_over_r * cosi * (1 - ecc**2) / (1 + ecc * np.sin(w))
-    shape = {
-        "period": period,
-        "a_over_r": a_over_r,
-        "k": rr,
-        "b": b,
-        "sin_i": np.sqrt(1 - cosi**2),
-        "ecc_factor": np.sqrt(1 - ecc**2) / (1 + ecc * np.sin(w)),
-    }
-    rho = 3 * math.pi * a_over_r**3 / (G_CGS * (period * SECONDS_PER_DAY) ** 2)
+    g = jax.tree_util.tree_map(np.asarray, get.geometry())
+    omega = np.arctan2(g.sin_omega, g.cos_omega)
+    rho = 3 * math.pi * g.a_over_rstar**3 / (G_CGS * (g.period * SECONDS_PER_DAY) ** 2)
     return {
-        f"{c}_R_star/a": Derived(f"$R_\\star/a_\\mathrm{{{c}}}$", "", 1 / a_over_r),
-        f"{c}_a/R_star": Derived(f"$a_\\mathrm{{{c}}}/R_\\star$", "", a_over_r),
-        f"{c}_R_companion/a": Derived(_tex("R", c) + "/a", "", rr / a_over_r),
-        f"{c}_i": Derived(_tex("i", c), "deg", np.degrees(np.arccos(cosi))),
-        f"{c}_e": Derived(_tex("e", c), "", ecc),
-        f"{c}_w": Derived(_tex("w", c), "deg", np.degrees(w)),
-        f"{c}_b_tra": Derived(_tex("b", f"tra;{c}"), "", b),
-        f"{c}_T_tra_tot": Derived(
-            _tex("T", f"tot;{c}"), "h", _duration(**shape, sign=+1)
-        ),
-        f"{c}_T_tra_full": Derived(
-            _tex("T", f"full;{c}"), "h", _duration(**shape, sign=-1)
-        ),
+        f"{c}_R_star/a": Derived(f"$R_\\star/a_\\mathrm{{{c}}}$", "", g.radius_1),
+        f"{c}_a/R_star": Derived(f"$a_\\mathrm{{{c}}}/R_\\star$", "", g.a_over_rstar),
+        f"{c}_R_companion/a": Derived(_tex("R", c) + "/a", "", g.rr / g.a_over_rstar),
+        f"{c}_rsuma": Derived(f"$(R_\\star + R_\\mathrm{{{c}}})/a$", "", g.rsuma),
+        f"{c}_cosi": Derived(f"$\\cos i_\\mathrm{{{c}}}$", "", np.cos(g.inclination)),
+        f"{c}_i": Derived(_tex("i", c), "deg", np.degrees(g.inclination)),
+        f"{c}_e": Derived(_tex("e", c), "", g.eccentricity),
+        f"{c}_w": Derived(_tex("w", c), "deg", np.degrees(omega)),
+        f"{c}_T_tra_tot": Derived(_tex("T", f"tot;{c}"), "h", g.duration * HOURS),
+        f"{c}_T_tra_full": Derived(_tex("T", f"full;{c}"), "h", _full_duration(g)),
         f"{c}_host_density": Derived(_tex("\\rho", f"\\star;{c}"), "cgs", rho),
     }
 
@@ -104,7 +109,7 @@ def _physical(get: _Draws, geo, star: Star, rng, has_rv: bool) -> dict[str, Deri
     c, n = get.c, get.n
     r_star = split_normal(star.radius, star.radius_err, rng, n)
     m_star = split_normal(star.mass, star.mass_err, rng, n)
-    radius = get("rr", 0.0) * r_star
+    radius = get("radius_ratio", 0.0) * r_star
     a_over_r = geo[f"{c}_a/R_star"].values
     out = {
         f"{c}_R_companion_earth": Derived(

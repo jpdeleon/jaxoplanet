@@ -1,5 +1,4 @@
 import shutil
-from pathlib import Path
 
 import jax
 import matplotlib
@@ -15,10 +14,12 @@ from jaxoplanet2.plots.initial_guess import (
     phase_offset,
     show_initial_guess,
 )
+from tests.jaxoplanet2.native import native_golden
 
 matplotlib.use("Agg")
 jax.config.update("jax_enable_x64", True)
-GOLDEN = Path(__file__).parents[1] / "golden" / "cases"
+
+GOLDEN = native_golden()  # golden cases converted to native parameters
 runner = CliRunner()
 
 
