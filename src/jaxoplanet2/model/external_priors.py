@@ -1,9 +1,11 @@
 """allesfitter's "external priors": terms that are not per-parameter priors.
 
 - Host density: ``params_star.csv`` (R*, M*) implies a stellar density; every
-  transiting companion implies one too, via Kepler's law and ``rsuma``. With
+  transiting companion implies one too, via Kepler's law and its a/R*. With
   ``use_host_density_prior`` the two are tied by a normal prior.
-- Physical limits: ``e < 1``, no collision (``e < 1 - rsuma``), ``dil < 0.999``.
+- Physical limits: ``e < 1``, no collision (``e < 1 - (R* + Rp)/a``),
+  ``dil < 0.999``, and a transit that exists: ``b < 1 + k`` and a duration short
+  enough to invert (``pi T14 / P < pi/2`` after the eccentricity factor).
 """
 
 import math
@@ -17,7 +19,11 @@ import numpy as np
 from scipy.stats import norm
 
 from jaxoplanet2.io.settings import Settings
-from jaxoplanet2.model.parameterization import companion_geometry, host_density_cgs
+from jaxoplanet2.model.parameterization import (
+    companion_geometry,
+    eccentricity_factors,
+    host_density_cgs,
+)
 
 Values = Mapping[str, jax.Array | float]
 PARAMS_STAR_FILE = "params_star.csv"
@@ -148,8 +154,14 @@ def external_log_prior(
     for c in settings.companions_all:
         g = companion_geometry(values, c)
         allowed = g.eccentricity < 1.0
-        if f"{c}_rsuma" in values:
-            allowed = allowed & (g.eccentricity < 1.0 - values[f"{c}_rsuma"])
+        if f"{c}_duration" in values:
+            _, t_factor = eccentricity_factors(g.eccentricity, g.sin_omega)
+            allowed = (
+                allowed
+                & (g.eccentricity < 1.0 - g.rsuma)
+                & (g.impact_param < 1.0 + g.rr)
+                & (g.duration < 0.5 * g.period * t_factor)
+            )
         lp = jnp.where(allowed, lp, -jnp.inf)
     for inst in settings.inst_phot:
         lp = jnp.where(values.get(f"dil_{inst}", 0.0) > MAX_DILUTION, -jnp.inf, lp)

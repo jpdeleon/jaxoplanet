@@ -121,7 +121,7 @@ def plot_instrument(
 def _plot_fold(ax, fit, inst, c, *, remove, level, ylabel) -> None:
     """Phase-fold companion ``c``; ``remove`` is everything but its own signal."""
     values, settings, data = fit.params.values(), fit.settings, fit.data[inst]
-    epoch, period = float(values[f"{c}_epoch"]), float(values[f"{c}_period"])
+    epoch, period = float(values[f"{c}_time_transit"]), float(values[f"{c}_period"])
     own = np.asarray(
         companion_signal(values, settings, inst, data.time, companion=c, ttv=fit.ttv)
     )

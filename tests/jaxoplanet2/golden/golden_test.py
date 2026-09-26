@@ -10,6 +10,7 @@ ellc integrates numerically on a grid and is itself off by ~6 ppm, so ellc cases
 get 10 ppm. RVs always come from ellc, good to ~2 cm/s; allow 5 cm/s (km/s data).
 """
 
+import shutil
 from pathlib import Path
 
 import jax
@@ -17,6 +18,7 @@ import numpy as np
 import pytest
 
 from jaxoplanet2.fitdir import load_fit_directory
+from jaxoplanet2.io.convert import convert_params_file
 from jaxoplanet2.io.data import load_datasets
 from jaxoplanet2.io.params import load_params
 from jaxoplanet2.io.settings import load_settings
@@ -32,6 +34,30 @@ jax.config.update("jax_enable_x64", True)
 
 HERE = Path(__file__).parent
 CASES = sorted(p.name for p in (HERE / "cases").iterdir())
+
+
+@pytest.fixture(scope="module")
+def native(tmp_path_factory):
+    """Each case converted to jaxoplanet's native parameters, as users would.
+
+    The committed cases stay in allesfitter's format (allesfitter generates the
+    references from them), so these tests also check that the conversion is
+    exact: the converted fit must reproduce allesfitter's model and likelihood.
+    """
+    root = tmp_path_factory.mktemp("native_cases")
+
+    def get(name: str) -> Path:
+        dest = root / name
+        if not dest.exists():
+            shutil.copytree(
+                HERE / "cases" / name, dest, ignore=shutil.ignore_patterns("results")
+            )
+            convert_params_file(dest)
+        return dest
+
+    return get
+
+
 FLUX_ATOL = {"batman": 1e-6, "ellc": 1e-5}
 RV_ATOL = 5e-5  # km/s
 # model differences allowed in the likelihood comparison: batman light curves
@@ -46,8 +72,8 @@ def test_every_case_has_a_reference():
 
 
 @pytest.mark.parametrize("name", CASES)
-def test_model_matches_allesfitter(name):
-    case = HERE / "cases" / name
+def test_model_matches_allesfitter(name, native):
+    case = native(name)
     reference = np.load(HERE / f"{name}.npz")
     settings = load_settings(case)
     values = load_params(case).values()
@@ -70,15 +96,14 @@ def _loglike_tolerance(residual, sigma, delta):
 
 
 @pytest.mark.parametrize("name", CASES)
-def test_log_likelihood_matches_allesfitter(name):
+def test_log_likelihood_matches_allesfitter(name, native):
     """Noise model, error normalisation, baselines and fast_fit all agree.
 
     Any difference must be explained by the (tested) model differences alone,
     so the tolerance is the bound those differences put on the likelihood.
     """
-    case = HERE / "cases" / name
     reference = np.load(HERE / f"{name}.npz")
-    fit = load_fit_directory(case)
+    fit = load_fit_directory(native(name))
     if fit.settings.raw.get("flux_model") != "batman":
         pytest.skip("ellc reference: its ~5 ppm model error dominates")
     values = fit.params.values()
@@ -97,10 +122,10 @@ def test_log_likelihood_matches_allesfitter(name):
 
 
 @pytest.mark.parametrize("name", CASES)
-def test_baselines_match_allesfitter(name):
+def test_baselines_match_allesfitter(name, native):
     """Sampled, hybrid and GP (conditional mean) baselines at the data."""
     reference = np.load(HERE / f"{name}.npz")
-    fit = load_fit_directory(HERE / "cases" / name)
+    fit = load_fit_directory(native(name))
     if fit.settings.raw.get("flux_model") != "batman":
         pytest.skip("ellc reference: its model error leaks into hybrid/GP baselines")
     values = fit.params.values()

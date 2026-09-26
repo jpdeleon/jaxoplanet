@@ -60,6 +60,29 @@ def init(
 
 
 @app.command()
+def convert_params(
+    dir_path: str = typer.Argument(..., help="path to the fit directory"),
+) -> None:
+    """Rewrite an allesfitter params.csv (rr, rsuma, cosi, epoch) to jaxoplanet's
+    native transit parameters (radius_ratio, duration, impact_param, time_transit).
+    """
+    from jaxoplanet2.io.convert import ConversionError, convert_params_file
+
+    try:
+        notes = convert_params_file(dir_path)
+    except (ConversionError, OSError, ValueError) as e:
+        typer.echo(f"Error: {e}")
+        raise typer.Exit(1) from e
+    for note in notes:
+        typer.echo(note)
+    if notes and "already" not in notes[0]:
+        typer.echo(
+            "Converted params.csv (backup: params.csv.orig). The duration and "
+            "impact_param priors above are new: review them before fitting."
+        )
+
+
+@app.command()
 def validate(
     dir_path: str = typer.Argument(..., help="path to the fit directory"),
     allow_unsupported: bool = typer.Option(
@@ -132,7 +155,7 @@ def optimize(  # noqa: PLR0917 (typer maps each option to a parameter)
     skip_bounds_check: bool = typer.Option(
         False,
         "--skip-bounds-check",
-        help="accept optima on a prior bound (e.g. cosi=0 for a central transit)",
+        help="accept optima on a prior bound (e.g. impact_param=0: central transit)",
     ),
     quiet: bool = typer.Option(False, "--quiet", "-q"),
     allow_unsupported: bool = typer.Option(False, "--allow-unsupported"),

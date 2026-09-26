@@ -53,6 +53,14 @@ def _check_parameters(
     fit: FitDirectory, report: ValidationReport, allow_unsupported: bool
 ) -> None:
     check = check_params(fit.settings, fit.params)
+    if check.legacy:
+        report.errors.append(
+            "params.csv uses allesfitter's transit parameters "
+            f"({', '.join(check.legacy)}); jaxoplanet2 samples jaxoplanet's native "
+            "ones (radius_ratio, duration, impact_param, time_transit, period). "
+            f"Run 'jaxoplanet convert-params {fit.path}' to convert the file."
+        )
+        return
     for name in check.missing:
         report.errors.append(f"params.csv is missing '{name}'")
     unsupported = [f"params.csv: '{n}' is not supported" for n in check.unsupported]
