@@ -1,3 +1,7 @@
+---
+orphan: true
+---
+
 # Plan: jaxoplanet2, an allesfitter-style fitter on a jaxoplanet hard fork
 
 Branch: `feat/cli-fitter`
