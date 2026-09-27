@@ -112,7 +112,7 @@ def load_datasets(
         dataset = load_dataset(fit_dir, inst, kind)
         if kind == "flux" and settings.fast_fit and settings.companions_phot:
             ephemerides = [
-                (values[f"{c}_epoch"], values[f"{c}_period"])
+                (values[f"{c}_time_transit"], values[f"{c}_period"])
                 for c in settings.companions_phot
             ]
             mask = fast_fit_mask(dataset.time, ephemerides, settings.fast_fit_width)

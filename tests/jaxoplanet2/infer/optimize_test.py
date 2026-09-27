@@ -10,7 +10,12 @@ from jaxoplanet2.io.params import load_params
 from tests.jaxoplanet2.synthetic import TRUTH, make_fit_dir
 
 runner = CliRunner()
-START = {"b_rr": 0.08, "b_rsuma": 0.12, "b_epoch": 2459000.405, "ln_err_flux_tess": -6.5}
+START = {
+    "b_radius_ratio": 0.08,
+    "b_duration": 0.12,
+    "b_time_transit": 2459000.405,
+    "ln_err_flux_tess": -6.5,
+}
 
 
 @pytest.fixture
@@ -23,8 +28,10 @@ def test_recovers_the_truth_and_updates_params(fit_dir):
     assert result.accepted, result.reject_reason
     assert result.delta_lnprob > 0.5 * len(result.fitkeys)
     params = load_params(fit_dir)
-    assert params["b_rr"].value == pytest.approx(TRUTH["b_rr"], abs=0.003)
-    assert params["b_epoch"].value == pytest.approx(TRUTH["b_epoch"], abs=5e-4)
+    k = params["b_radius_ratio"].value
+    assert k == pytest.approx(TRUTH["b_radius_ratio"], abs=0.003)
+    t0 = params["b_time_transit"].value
+    assert t0 == pytest.approx(TRUTH["b_time_transit"], abs=5e-4)
     assert (fit_dir / "params.csv.orig").exists()
     assert "0.08" in (fit_dir / "params.csv.orig").read_text()
 
@@ -35,7 +42,8 @@ def test_writes_json_summary_and_optimized_table(fit_dir):
     assert saved["accepted"] == result.accepted
     assert saved["fitkeys"] == list(result.fitkeys)
     optimized = load_params(fit_dir / "results", "params_optimized.csv")
-    assert optimized["b_rr"].value == pytest.approx(TRUTH["b_rr"], abs=0.003)
+    k = optimized["b_radius_ratio"].value
+    assert k == pytest.approx(TRUTH["b_radius_ratio"], abs=0.003)
 
 
 def test_no_update_leaves_params_untouched(fit_dir):
@@ -56,30 +64,35 @@ def test_rejects_when_it_cannot_beat_the_start(tmp_path):
 
 
 def test_shifted_epoch_is_written_back_in_the_original_frame(tmp_path):
-    start = {"b_epoch": 2459000.405 - 10 * 3.2}  # data start 10 orbits later
-    prior = "b_epoch,{},1,uniform 2458968.3 2458968.5"
+    start = {"b_time_transit": 2459000.405 - 10 * 3.2}  # data start 10 orbits later
+    prior = "b_time_transit,{},1,uniform 2458968.3 2458968.5"
     fit_dir = make_fit_dir(tmp_path / "fit", start=start, shift_epoch=True)
     text = (fit_dir / "params.csv").read_text().splitlines()
     text = [
-        prior.format(start["b_epoch"]) + ",b_epoch,," if ln.startswith("b_epoch") else ln
+        prior.format(start["b_time_transit"]) + ",t0,,"
+        if ln.startswith("b_time_transit")
+        else ln
         for ln in text
     ]
     (fit_dir / "params.csv").write_text("\n".join(text) + "\n")
     result = optimize(fit_dir, quiet=True)
     assert result.accepted, result.reject_reason
-    epoch = load_params(fit_dir)["b_epoch"].value
+    epoch = load_params(fit_dir)["b_time_transit"].value
     period = load_params(fit_dir)["b_period"].value
     # cycle-equivalent to the truth, but still near the user's original epoch
-    assert epoch == pytest.approx(TRUTH["b_epoch"] - 10 * period, abs=1e-3)
+    assert epoch == pytest.approx(TRUTH["b_time_transit"] - 10 * period, abs=1e-3)
 
 
 def test_optimum_on_a_bound_is_rejected_unless_skipped(tmp_path):
     # a central transit: the optimum sits at the cosi = 0 prior edge
-    fit_dir = make_fit_dir(tmp_path / "fit", start={**START, "b_cosi": 0.0})
+    fit_dir = make_fit_dir(tmp_path / "fit", start={**START, "b_impact_param": 0.0})
     text = (
         (fit_dir / "params.csv")
         .read_text()
-        .replace("b_cosi,0.0,1,uniform 0.0 1.0", "b_cosi,0.0,1,uniform 0.0 0.001")
+        .replace(
+            "b_impact_param,0.0,1,uniform 0.0 1.2",
+            "b_impact_param,0.0,1,uniform 0.0 0.001",
+        )
     )
     (fit_dir / "params.csv").write_text(text)
     result = optimize(fit_dir, quiet=True, update_params=False)

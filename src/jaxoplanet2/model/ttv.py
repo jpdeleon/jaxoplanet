@@ -91,7 +91,7 @@ def ttv_windows(
     windows = {}
     for c in settings.companions_phot:
         tmids = observed_transits(
-            time, params[f"{c}_epoch"].value, params[f"{c}_period"].value, width
+            time, params[f"{c}_time_transit"].value, params[f"{c}_period"].value, width
         )
         rows = _ttv_rows(params, c)
         if rows != list(range(1, len(tmids) + 1)):

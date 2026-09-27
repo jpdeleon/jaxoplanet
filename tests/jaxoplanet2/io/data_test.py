@@ -122,7 +122,7 @@ def test_load_datasets_applies_fast_fit_to_photometry_only(tmp_path):
         "companions_phot,b\ncompanions_rv,b\ninst_phot,tess\ninst_rv,harps\n"
         "fast_fit,True\nfast_fit_width,0.5\n"
     )
-    data = load_datasets(tmp_path, settings, {"b_epoch": 1.0, "b_period": 3.0})
+    data = load_datasets(tmp_path, settings, {"b_time_transit": 1.0, "b_period": 3.0})
     assert len(data["harps"]) == 101
     assert 0 < len(data["tess"]) < 101
 
@@ -133,11 +133,11 @@ def test_load_datasets_fast_fit_without_transits_fails(tmp_path):
         "companions_phot,b\ninst_phot,tess\nfast_fit,True\nfast_fit_width,0.01\n"
     )
     with pytest.raises(DataError, match="in-transit"):
-        load_datasets(tmp_path, settings, {"b_epoch": 0.5, "b_period": 10.0})
+        load_datasets(tmp_path, settings, {"b_time_transit": 0.5, "b_period": 10.0})
 
 
 def test_load_datasets_without_fast_fit_keeps_everything(tmp_path):
     write(tmp_path / "tess.csv", "0.0,1,0.001\n0.1,1,0.001\n")
     settings = parse_settings_text("companions_phot,b\ninst_phot,tess\n")
-    data = load_datasets(tmp_path, settings, {"b_epoch": 0.5, "b_period": 10.0})
+    data = load_datasets(tmp_path, settings, {"b_time_transit": 0.5, "b_period": 10.0})
     assert len(data["tess"]) == 2

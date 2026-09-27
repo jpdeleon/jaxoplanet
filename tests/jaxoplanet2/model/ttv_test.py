@@ -9,7 +9,7 @@ from jaxoplanet2.validate import validate
 from tests.jaxoplanet2.synthetic import TRUTH, make_fit_dir
 
 jax.config.update("jax_enable_x64", True)
-EPOCH, PERIOD = TRUTH["b_epoch"], TRUTH["b_period"]
+EPOCH, PERIOD = TRUTH["b_time_transit"], TRUTH["b_period"]
 
 
 def test_observed_transits_skip_data_gaps():

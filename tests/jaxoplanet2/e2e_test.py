@@ -17,9 +17,22 @@ from tests.jaxoplanet2.synthetic import TRUTH, make_fit_dir
 
 runner = CliRunner()
 # a deliberately wrong starting point; optimize must fix it before sampling
-START = {"b_rr": 0.09, "b_rsuma": 0.115, "b_epoch": 2459000.402, "b_K": 0.03}
+START = {
+    "b_radius_ratio": 0.09,
+    "b_duration": 0.115,
+    "b_time_transit": 2459000.402,
+    "b_K": 0.03,
+}
 SAMPLER = "mcmc_nwalkers,2\nmcmc_total_steps,500\nmcmc_burn_steps,300\n"
-RECOVERED = ("b_rr", "b_rsuma", "b_epoch", "b_period", "b_K", "ln_err_flux_tess")
+RECOVERED = (
+    "b_radius_ratio",
+    "b_duration",
+    "b_impact_param",
+    "b_time_transit",
+    "b_period",
+    "b_K",
+    "ln_err_flux_tess",
+)
 MAX_SIGMA = 3.0
 MAX_R_HAT = 1.05
 

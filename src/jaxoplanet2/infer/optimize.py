@@ -206,9 +206,9 @@ def _to_params_frame(fit: FitDirectory, obj: Objective, theta: np.ndarray):
     """Undo shift_epoch with the optimised period (allesfitter2's convention)."""
     values = dict(zip(obj.fitkeys, theta.tolist(), strict=True))
     for c, n in fit.epoch_shifts.items():
-        if n and f"{c}_epoch" in values:
+        if n and f"{c}_time_transit" in values:
             period = values.get(f"{c}_period", fit.params[f"{c}_period"].value)
-            values[f"{c}_epoch"] -= n * period
+            values[f"{c}_time_transit"] -= n * period
     return values
 
 

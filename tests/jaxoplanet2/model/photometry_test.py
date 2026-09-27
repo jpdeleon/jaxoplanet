@@ -6,6 +6,7 @@ from jaxoplanet2.io.settings import parse_settings_text
 from jaxoplanet2.model.exposure import exposure_nodes
 from jaxoplanet2.model.parameterization import companion_orbit, mid_eclipse_offset
 from jaxoplanet2.model.photometry import flux_model, ld_coefficients
+from tests.jaxoplanet2.native import from_allesfitter
 
 batman = pytest.importorskip("batman")
 jax.config.update("jax_enable_x64", True)
@@ -17,7 +18,8 @@ def settings(text=SETTINGS):
     return parse_settings_text(text)
 
 
-def values(**overrides):
+def raw(**overrides):
+    """allesfitter-style numbers (what batman is given)."""
     base = {
         "b_rr": 0.1,
         "b_rsuma": 0.12,
@@ -28,6 +30,11 @@ def values(**overrides):
         "host_ldc_q2_tess": 0.3,
     }
     return {**base, **overrides}
+
+
+def values(**overrides):
+    """The same system in jaxoplanet's native parameters (what the model gets)."""
+    return from_allesfitter(raw(**overrides))
 
 
 def batman_flux(t, v, u, t0_shift=0.0):
@@ -81,17 +88,18 @@ def test_circular_transit_matches_batman():
     t = np.linspace(0.1, 0.5, 2001)
     u = ld_coefficients(v, settings(), "tess")
     got = np.asarray(flux_model(v, settings(), "tess", t))
-    np.testing.assert_allclose(got, batman_flux(t, v, u), atol=1e-7)
+    np.testing.assert_allclose(got, batman_flux(t, raw(), u), atol=1e-7)
 
 
 def test_eccentric_transit_matches_batman_at_conjunction_time():
-    v = values(b_f_c=0.3, b_f_s=0.4, b_cosi=0.05, b_period=4.0)
+    r = raw(b_f_c=0.3, b_f_s=0.4, b_cosi=0.05, b_period=4.0)
+    v = from_allesfitter(r)
     t = np.linspace(0.1, 0.5, 2001)
     u = ld_coefficients(v, settings(), "tess")
     e, w = 0.25, np.arctan2(0.4, 0.3)
     shift = float(mid_eclipse_offset(4.0, e, np.cos(w), np.sin(w), np.arccos(0.05)))
     got = np.asarray(flux_model(v, settings(), "tess", t))
-    np.testing.assert_allclose(got, batman_flux(t, v, u, t0_shift=shift), atol=1e-7)
+    np.testing.assert_allclose(got, batman_flux(t, r, u, t0_shift=shift), atol=1e-7)
 
 
 def test_bjd_epochs_keep_precision():
@@ -99,7 +107,7 @@ def test_bjd_epochs_keep_precision():
     t = 2459000.0 + np.linspace(0.1, 0.5, 2001)
     u = ld_coefficients(v, settings(), "tess")
     got = np.asarray(flux_model(v, settings(), "tess", t))
-    ref = batman_flux(t - 2459000.0, values(), u)
+    ref = batman_flux(t - 2459000.0, raw(), u)
     np.testing.assert_allclose(got, ref, atol=1e-7)
 
 
@@ -155,8 +163,8 @@ def test_flux_model_is_differentiable_and_jittable():
     t = np.linspace(0.25, 0.35, 21)
 
     @jax.jit
-    def loss(rr):
-        return flux_model(values(b_rr=rr), s, "tess", t).sum()
+    def loss(k):
+        return flux_model({**values(), "b_radius_ratio": k}, s, "tess", t).sum()
 
     g = jax.grad(loss)(0.1)
     assert np.isfinite(g) and g < 0  # bigger planet, less flux

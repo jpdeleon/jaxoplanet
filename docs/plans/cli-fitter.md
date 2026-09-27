@@ -189,6 +189,13 @@ ignored. This is identical to allesfitter.
 
 ## Parameterization mapping (the risky part)
 
+> **Superseded:** the fitter now samples jaxoplanet's native `TransitOrbit`
+> parameters (`<c>_radius_ratio`, `<c>_duration`, `<c>_impact_param`,
+> `<c>_time_transit`, `<c>_period`) and maps them exactly to a Keplerian orbit by
+> inverting Winn (2010) eqs. 7 and 14 (see `jaxoplanet2.model.parameterization`).
+> Legacy files are converted with `jaxoplanet convert-params <dir>`. The
+> original allesfitter mapping is kept below for reference.
+
 allesfitter's parameters are converted to jaxoplanet's `Central` and `Body` inside
 the numpyro model, so gradients flow through:
 

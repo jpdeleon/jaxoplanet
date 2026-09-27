@@ -1,9 +1,9 @@
 #name,value,fit,bounds,label,unit,truth
 #companion b (ephemeris and depth from a BLS search of these data),,,,,,
-b_rr,0.0302,1,uniform 0.0 0.1,$R_b / R_\star$,,
-b_rsuma,0.047,1,uniform 0.01 0.2,$(R_\star + R_b) / a_b$,,
-b_cosi,0.01,1,uniform 0.0 0.2,$\cos{i_b}$,,
-b_epoch,2454953.79163,1,uniform 2454953.74 2454953.84,$T_{0;b}$,$\mathrm{BJD}$,
+b_radius_ratio,0.0302,1,uniform 0.0 0.1,$R_b / R_\star$,,
+b_duration,0.10533333737020685,1,uniform 0.03511 0.316,$T_{14;b}$,d,
+b_impact_param,0.21919148936170416,1,uniform 0.0 1.1,$b_{b}$,,
+b_time_transit,2454953.79163,1,uniform 2454953.74 2454953.84,$T_{0;b}$,$\mathrm{BJD}$,
 b_period,7.202826,1,uniform 7.2 7.206,$P_b$,$\mathrm{d}$,
 b_f_c,0.0,0,,$\sqrt{e_b} \cos{\omega_b}$,,
 b_f_s,0.0,0,,$\sqrt{e_b} \sin{\omega_b}$,,

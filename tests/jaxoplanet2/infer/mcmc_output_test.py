@@ -35,10 +35,10 @@ def test_writes_tables_and_figures(sampled):
             "mcmc_corner.png", "mcmc_fit_tess.png"} <= names  # fmt: skip
     table = read_table(sampled / "results" / "mcmc_table.csv")
     assert set(table) == {p.name for p in load_params(sampled).free}
-    median, lower, upper = table["b_rr"]
+    median, lower, upper = table["b_radius_ratio"]
     assert 0.05 < median < 0.15 and lower > 0 and upper > 0
     derived = (sampled / "results" / "mcmc_derived_table.csv").read_text()
-    assert "b_T_tra_tot" in derived and "b_b_tra" in derived
+    assert "b_T_tra_tot" in derived and "b_rsuma" in derived
 
 
 def test_refuses_to_overwrite(sampled):

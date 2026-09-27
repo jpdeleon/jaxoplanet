@@ -71,12 +71,12 @@ def tiny_fit(tmp_path):
 def test_mcmc_fit_writes_samples_and_diagnostics(tiny_fit):
     result = mcmc_fit(tiny_fit, quiet=True, progress_bar=False)
     samples, meta = load_samples(tiny_fit)
-    assert samples["b_rr"].shape == (2, 10)
+    assert samples["b_radius_ratio"].shape == (2, 10)
     assert set(samples) == set(meta["fitkeys"])
     assert meta["num_chains"] == 2
     assert result.r_hat.keys() == samples.keys()
     text = (tiny_fit / "results" / "mcmc_diagnostics.txt").read_text()
-    assert "r_hat" in text and "b_rr" in text
+    assert "r_hat" in text and "b_radius_ratio" in text
 
 
 def test_cli_mcmc_fit(tiny_fit):
@@ -99,17 +99,17 @@ def test_cli_mcmc_fit_rejects_invalid_directory(tiny_fit):
 def test_posterior_contains_the_truth(tmp_path):
     fit = make_fit_dir(
         tmp_path / "fit",
-        extra_settings="mcmc_nwalkers,2\nmcmc_total_steps,500\nmcmc_burn_steps,250\n",
+        extra_settings="mcmc_nwalkers,2\nmcmc_total_steps,800\nmcmc_burn_steps,400\n",
     )
     result = mcmc_fit(fit, quiet=True, progress_bar=False)
     samples, _ = load_samples(fit)
-    for name in ("b_rr", "b_epoch", "b_period", "ln_err_flux_tess"):
+    for name in ("b_radius_ratio", "b_time_transit", "b_period", "ln_err_flux_tess"):
         draws = samples[name].ravel()
         z = abs(draws.mean() - TRUTH[name]) / draws.std()
         assert z < 3, (name, z)
         assert result.r_hat[name] < 1.05
     assert result.divergences == 0  # with the default target_accept of 0.99
-    assert np.isfinite(samples["b_rsuma"]).all()
+    assert np.isfinite(samples["b_duration"]).all()
 
 
 def test_importing_jaxoplanet2_leaves_the_jax_backend_configurable():

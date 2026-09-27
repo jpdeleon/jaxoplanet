@@ -95,7 +95,7 @@ def parse_params_text(text: str) -> ParamTable:
     params = []
     for lineno, raw_line in enumerate(text.splitlines(), start=1):
         line = raw_line.strip()
-        header = _header_columns(line)
+        header = header_columns(line)
         if header is not None:
             columns = header
             continue
@@ -110,7 +110,7 @@ def parse_params_text(text: str) -> ParamTable:
     return ParamTable(tuple(params))
 
 
-def _header_columns(line: str) -> tuple[str, ...] | None:
+def header_columns(line: str) -> tuple[str, ...] | None:
     body = line.lstrip("\\#").strip()
     if not body.startswith("name,"):
         return None

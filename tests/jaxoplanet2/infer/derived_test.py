@@ -6,13 +6,16 @@ import pytest
 from jaxoplanet2.infer.derived import derive, summarize
 from jaxoplanet2.io.settings import parse_settings_text
 from jaxoplanet2.model.external_priors import Star
+from tests.jaxoplanet2.native import from_allesfitter
 
 SETTINGS = parse_settings_text("companions_phot,b\ninst_phot,tess\n")
 N = 2000
 
 
 def draws(**values):
-    return {k: np.full(N, v, dtype=float) for k, v in values.items()}
+    """N identical native draws of a system given in allesfitter numbers."""
+    native = from_allesfitter(values)
+    return {k: np.full(N, v, dtype=float) for k, v in native.items()}
 
 
 BASE = {"b_rr": 0.1, "b_rsuma": 0.11, "b_cosi": 0.05, "b_period": 3.0, "b_epoch": 0.0}
@@ -32,7 +35,8 @@ def test_geometry_of_a_circular_orbit():
     assert d["b_a/R_star"].values[0] == pytest.approx(a_over_r)
     assert d["b_R_star/a"].values[0] == pytest.approx(0.1)
     assert d["b_i"].values[0] == pytest.approx(math.degrees(math.acos(0.05)))
-    assert d["b_b_tra"].values[0] == pytest.approx(a_over_r * 0.05)
+    assert d["b_rsuma"].values[0] == pytest.approx(0.11)
+    assert d["b_cosi"].values[0] == pytest.approx(0.05)
     b = a_over_r * 0.05
     sin_i = math.sqrt(1 - 0.05**2)
     t14 = 3.0 / math.pi * math.asin(math.sqrt(1.1**2 - b**2) / a_over_r / sin_i)
@@ -42,14 +46,13 @@ def test_geometry_of_a_circular_orbit():
     assert d["b_host_density"].unit == "cgs"
 
 
-def test_eccentricity_changes_impact_parameter_and_duration():
-    ecc = derive(draws(**BASE, b_f_c=0.3, b_f_s=0.4), SETTINGS, star=None)
-    circ = derive(draws(**BASE), SETTINGS, star=None)
+def test_eccentric_orbit_recovers_allesfitters_geometry():
+    d = derive(draws(**BASE, b_f_c=0.3, b_f_s=0.4), SETTINGS, star=None)
     e, w = 0.25, math.atan2(0.4, 0.3)
-    factor = (1 - e**2) / (1 + e * math.sin(w))
-    assert ecc["b_e"].values[0] == pytest.approx(e)
-    assert ecc["b_w"].values[0] == pytest.approx(math.degrees(w))
-    assert ecc["b_b_tra"].values[0] == pytest.approx(circ["b_b_tra"].values[0] * factor)
+    assert d["b_e"].values[0] == pytest.approx(e)
+    assert d["b_w"].values[0] == pytest.approx(math.degrees(w))
+    assert d["b_rsuma"].values[0] == pytest.approx(0.11)
+    assert d["b_cosi"].values[0] == pytest.approx(0.05)
 
 
 def test_grazing_transit_has_no_full_duration():

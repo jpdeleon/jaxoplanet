@@ -141,7 +141,7 @@ def test_unknown_column_is_an_error():
 def test_load_params_reads_template(tmp_path):
     init_directory(tmp_path)
     t = load_params(tmp_path)
-    assert "b_rr" in t
+    assert "b_radius_ratio" in t
     assert all(p.prior is not None for p in t.free)
 
 

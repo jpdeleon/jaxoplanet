@@ -95,7 +95,7 @@ def shift_epochs(
     width = settings.fast_fit_width or 0.0
     table, shifts = params, {}
     for c in settings.companions_all:
-        epoch, period = params[f"{c}_epoch"], params[f"{c}_period"]
+        epoch, period = params[f"{c}_time_transit"], params[f"{c}_period"]
         time = _epoch_times(settings, data, c)
         new_epoch, n = mid_epoch(time, epoch.value, period.value, width)
         shifts[c] = n
