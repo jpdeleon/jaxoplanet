@@ -20,29 +20,6 @@ def test_x64(session):
     session.run("pytest", "-n", "auto", *session.posargs, env=env)
 
 
-@nox.session
-def docs(session):
-    session.install(".[docs]")
-    with session.chdir("docs"):
-        session.run(
-            "python",
-            "-m",
-            "sphinx",
-            "-T",
-            "-E",
-            "-W",
-            "--keep-going",
-            "-b",
-            "dirhtml",
-            "-d",
-            "_build/doctrees",
-            "-D",
-            "language=en",
-            ".",
-            "_build/dirhtml",
-        )
-
-
 @nox.session(python=["3.11", "3.13"])
 def jaxoplanet2(session):
     """jaxoplanet2 fitter tests with the 80% coverage gate."""
