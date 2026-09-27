@@ -69,7 +69,12 @@ git merge upstream/main
 Conflicts are expected only in files the fork deliberately changed:
 `pyproject.toml`, `README.md`, `CONTRIBUTING.md` (this section) and `noxfile.py`
 (the `jaxoplanet2` session). In each case keep both sides: upstream's changes
-plus the jaxoplanet2 additions. Then verify and push:
+plus the jaxoplanet2 additions.
+
+The fork does not ship upstream's Sphinx docs (they live at
+https://jax.exoplanet.codes). When upstream edits a file under `docs/`, `.readthedocs.yaml`
+or the `docs` nox session / CI job, the merge reports a modify/delete
+conflict: keep the deletion (`git rm <path>`). Then verify and push:
 
 ```bash
 python -m nox -s jaxoplanet2
