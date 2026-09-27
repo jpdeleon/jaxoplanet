@@ -25,7 +25,8 @@ uv run jaxoplanet mcmc-fit my_fit/
 > it alongside the upstream `jaxoplanet` distribution in the same environment,
 > because the two would overwrite each other's files.
 
-See [issue #1](https://github.com/jpdeleon/jaxoplanet2/issues/1) for the roadmap.
+**Documentation:** <https://jpdeleon.github.io/jaxoplanet2/>. See
+[issue #1](https://github.com/jpdeleon/jaxoplanet2/issues/1) for the roadmap.
 The upstream jaxoplanet README follows.
 
 ---

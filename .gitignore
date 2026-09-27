@@ -19,3 +19,6 @@ poetry.lock
 .vscode
 jupyter_execute
 uv.lock
+
+# mkdocs build output
+site/
