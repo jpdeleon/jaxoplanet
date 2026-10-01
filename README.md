@@ -20,6 +20,21 @@ uv run jaxoplanet optimize my_fit/
 uv run jaxoplanet mcmc-fit my_fit/
 ```
 
+`jaxoplanet init` creates a fit directory. With a target it works like
+allesfitter's `prepare_allesfit.py` (same options): it looks up the ephemeris in
+the TOI/CTOI/NExSci catalogs and the host in the TIC, downloads the light
+curve(s) with lightkurve, and writes `params.csv` (jaxoplanet's native transit
+parameters), `settings.csv`, `params_star.csv`, `<inst>.csv` and `run.sh`
+(needs `pip install "jaxoplanet2[prepare]"`; a source checkout's `uv run` has it):
+
+```bash
+uv run jaxoplanet init my_fit/                          # template files only
+uv run jaxoplanet init -toi 1097 -s all -e 120          # -> ./TOI-1097/
+uv run jaxoplanet init -tic 273586149 -s -1 -p qlp --period 3.1 --epoch 2459000.1 ...
+uv run jaxoplanet init -name "HIP 67522" -o -i          # NExSci parameters
+uv run jaxoplanet init -h                               # every option
+```
+
 > [!WARNING]
 > The `jaxoplanet2` distribution provides the `jaxoplanet` module. Do not install
 > it alongside the upstream `jaxoplanet` distribution in the same environment,

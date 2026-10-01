@@ -23,7 +23,7 @@ def test_x64(session):
 @nox.session(python=["3.11", "3.13"])
 def jaxoplanet2(session):
     """jaxoplanet2 fitter tests with the 80% coverage gate."""
-    session.install(".[test,ns]", "pytest-cov", "setuptools")  # batman needs distutils
+    session.install(".[test,ns,prepare]", "pytest-cov", "setuptools")  # batman needs distutils
     session.run(
         "pytest",
         "tests/jaxoplanet2",

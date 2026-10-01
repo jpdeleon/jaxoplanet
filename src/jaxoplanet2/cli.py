@@ -36,27 +36,64 @@ def _main(
     pass
 
 
-@app.command()
-def init(
-    dir_path: str = typer.Argument(..., help="directory to create the fit in"),
-    overwrite: bool = typer.Option(
-        False, "--overwrite", "-o", help="replace existing params/settings files"
-    ),
-) -> None:
-    """Create template params.csv and settings.csv in a fit directory."""
-    from jaxoplanet2.init import init_directory
+@app.command(
+    context_settings={"allow_extra_args": True, "ignore_unknown_options": True},
+    add_help_option=False,
+)
+def init(ctx: typer.Context) -> None:
+    """Create a fit directory: templates, or from TOI/CTOI/TIC/NExSci (see -h).
 
+    'jaxoplanet init DIR' writes template params.csv and settings.csv into DIR.
+    'jaxoplanet init -toi 1097 -s all -e 120' (options as in allesfitter's
+    prepare_allesfit.py) builds ./TOI-1097/ from catalogs and TESS light curves.
+    """
+    from jaxoplanet2.prepare.errors import PrepareError
+    from jaxoplanet2.prepare.options import build_parser, has_target
+
+    args = build_parser().parse_args(ctx.args)
+    try:
+        if has_target(args):
+            _init_from_catalogs(args)
+        else:
+            _init_templates(args.dir_path or args.dir, args.overwrite)
+    except (PrepareError, OSError) as e:
+        typer.echo(f"Error: {e}")
+        raise typer.Exit(1) from e
+
+
+def _init_templates(dir_path: str | None, overwrite: bool) -> None:
+    from jaxoplanet2.init import init_directory
+    from jaxoplanet2.prepare.errors import PrepareError
+
+    if dir_path is None:
+        raise PrepareError(
+            "give a directory (jaxoplanet init DIR) or a target (-toi/-ctoi/-tic/-name)"
+        )
     try:
         written = init_directory(dir_path, overwrite=overwrite)
     except FileExistsError as e:
-        typer.echo(f"Error: {e}")
-        raise typer.Exit(1) from e
+        raise PrepareError(str(e)) from e
     for path in written:
         typer.echo(f"wrote {path}")
     typer.echo(
         "Next: add your data as <inst>.csv (e.g. tess.csv: time,flux,flux_err), "
         f"edit the templates, then run 'jaxoplanet show-initial-guess {dir_path}'."
     )
+
+
+def _init_from_catalogs(args) -> None:
+    from jaxoplanet2.prepare.errors import PrepareError
+
+    try:
+        from jaxoplanet2.prepare.run import run
+    except ImportError as e:
+        raise PrepareError(
+            f"{e}; 'jaxoplanet init' with a target needs: "
+            "pip install 'jaxoplanet2[prepare]'"
+        ) from e
+    result = run(args)
+    for path in result if isinstance(result, list) else [result]:
+        typer.echo(f"wrote {path}")
 
 
 @app.command()
